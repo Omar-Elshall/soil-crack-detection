@@ -30,7 +30,7 @@ def eval(args, test_dataloaders):
     elif args.model_name == 'EfficientCrackNet':
         model = EfficientCrackNet().to(device)
 
-    model.load_state_dict(torch.load(f'./saved_models/{args.model_name}/best_model_num_{args.run_num}.pt', weights_only=False)['model_state_dict'])
+    model.load_state_dict(torch.load(f'./results/saved_models/{args.model_name}/best_model_num_{args.run_num}.pt', weights_only=False)['model_state_dict'])
 
     model.eval()
     f1_scores, recall_scores, precision_scores, iou_scores = 0.0, 0.0, 0.0, 0.0
@@ -43,7 +43,7 @@ def eval(args, test_dataloaders):
     print()
 
     # Setup output directory for prediction masks
-    output_dir = './real_eval_predictions'
+    output_dir = './results/real_eval_predictions'
     os.makedirs(output_dir, exist_ok=True)
     image_paths = test_dataloaders.dataset.image_path_list
     img_idx = 0
