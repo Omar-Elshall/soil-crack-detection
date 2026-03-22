@@ -26,7 +26,7 @@ def run_with_validation(args, model, train_dataloaders, valid_dataloaders, plot_
     epoch_train_loss = []
     epoch_valid_loss = []
     best_loss = np.inf
-    best_path = f'./saved_models/{args.model_name}/best_model_num_{args.run_num}.pt'
+    best_path = f'./results/saved_models/{args.model_name}/best_model_num_{args.run_num}.pt'
     bce_loss = BCELoss()
     dice_loss = DiceLoss()
     miou_loss = IoULoss()
@@ -97,7 +97,7 @@ def run_without_validation(args, model, train_dataloaders, plot_path):
     epochs = []                
     epoch_train_loss = []
     best_loss = np.inf
-    best_path = './saved_models/{}'.format(args.model_name) + '/' + 'best_model_num_{}.pt'.format(args.run_num)
+    best_path = './results/saved_models/{}'.format(args.model_name) + '/' + 'best_model_num_{}.pt'.format(args.run_num)
     bce_loss = BCELoss()
     dice_loss = DiceLoss()
     miou_loss = IoULoss()
@@ -174,9 +174,9 @@ if __name__ == '__main__':
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # writer = SummaryWriter('./TB_runs/')
-    plot_path= f'./plots/{args.model_name}/run_{args.run_num}/'
-    model_path= f'./saved_models/{args.model_name}/run_{args.run_num}/'
-    tensorboard_path = f'./tensorboard/{args.model_name}/run_{args.run_num}/'
+    plot_path= f'./results/plots/{args.model_name}/run_{args.run_num}/'
+    model_path= f'./results/saved_models/{args.model_name}/run_{args.run_num}/'
+    tensorboard_path = f'./results/tensorboard/{args.model_name}/run_{args.run_num}/'
 
     # Create directories if they don't exist
     os.makedirs(plot_path, exist_ok=True)

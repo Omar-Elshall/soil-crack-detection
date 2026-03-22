@@ -147,7 +147,7 @@ def save_training_plot_only(epoch_train_loss, epochs, args):
     train_loss_plot, = plt.plot(epochs, epoch_train_loss, 'r')
     plt.title('Training Loss')
     plt.legend([train_loss_plot], ['Training Loss'])
-    plt.savefig(f'./plots/{args.model_name}/run_{args.run_num}/loss_plots.jpg')
+    plt.savefig(f'./results/plots/{args.model_name}/run_{args.run_num}/loss_plots.jpg')
 
 
 def save_plots(epoch_train_loss, epoch_valid_loss, epochs, args):
@@ -159,7 +159,7 @@ def save_plots(epoch_train_loss, epoch_valid_loss, epochs, args):
     val_loss_plot, = plt.plot(epochs, epoch_valid_loss, 'b')
     plt.title('Training and Validation Loss')
     plt.legend([train_loss_plot, val_loss_plot], ['Training Loss', 'Validation Loss'])
-    plt.savefig(f'./plots/{args.model_name}/run_{args.run_num}/loss_plots.jpg')
+    plt.savefig(f'./results/plots/{args.model_name}/run_{args.run_num}/loss_plots.jpg')
 
 
 def init_weights(m):
