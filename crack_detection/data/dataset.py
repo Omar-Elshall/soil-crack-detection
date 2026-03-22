@@ -49,7 +49,7 @@ class CustomImageDataset(Dataset):
 class DeepCrackDataset(Dataset):
     def __init__(self, args, data_part=None, subset_size=None):
         self.data_part = data_part
-        self.augmentation_prob = 0.5
+        self.augmentation_prob = 0.7
         self.args = args
         # gives list of entire path to each image along the img_dir
         if self.data_part == 'train':
@@ -73,68 +73,79 @@ class DeepCrackDataset(Dataset):
             self.image_path_list = [self.image_path_list[i] for i in indices]
             self.mask_path_list = [self.mask_path_list[i] for i in indices]
             print(f"Using random subset: {subset_size} images from {data_part} set")
-        
+
+        self.color_jitter = transforms.ColorJitter(
+            brightness=0.35, contrast=0.22, saturation=0.3, hue=0.02
+        )
+
     def __len__(self):
         return len(self.image_path_list)
 
     def __getitem__(self, idx):
-        # TODO
-        image = Image.open(self.image_path_list[idx])
+        image = Image.open(self.image_path_list[idx]).convert('RGB')
         mask = Image.open(self.mask_path_list[idx])
 
-        transformer = []
-        mask_transformer = []
-        if self.args.model_name == 'LMM_Net':
-            image_width, image_height = 512, 512
-        elif self.args.model_name == 'EfficientCrackNet':
-            image_width, image_height = 512, 512  # Square to match 720x720 originals (no distortion)
-            mask_width, mask_height = 512, 512
+        # Always resize to 512x512
+        image = F.resize(image, (512, 512))
+        mask = F.resize(mask, (512, 512), interpolation=transforms.InterpolationMode.NEAREST)
 
-        transformer.append(transforms.Resize((image_height, image_width)))
-        mask_transformer.append(transforms.Resize((mask_height, mask_width)))
-        p_transform = random.random()
+        if self.data_part == 'train' and random.random() <= self.augmentation_prob:
+            # --- Spatial transforms: applied identically to image and mask ---
 
-        
-        if (self.data_part == 'train') and p_transform <= self.augmentation_prob:
-            transformer = transforms.Compose(transformer)
-            mask_transformer = transforms.Compose(mask_transformer)
-            image = transformer(image)
-            # mask = transformer(mask)
-            mask = mask_transformer(mask)
+            # Random rotation ±30°
+            if random.random() < 0.5:
+                angle = random.uniform(-30, 30)
+                image = F.rotate(image, angle, fill=0)
+                mask = F.rotate(mask, angle, interpolation=transforms.InterpolationMode.NEAREST, fill=0)
 
-            transformer = []
-            # mask_transformer = transformer
-            transformer.append(transforms.RandomInvert(p=0.05))
-            transformer.append(transforms.ColorJitter(brightness=0.35,contrast=0.22,hue=0.02))
-            transformer = transforms.Compose(transformer)
-            image = transformer(image)
+            # Random zoom (resized crop)
+            if random.random() < 0.4:
+                i, j, h, w = transforms.RandomResizedCrop.get_params(
+                    image, scale=(0.7, 1.0), ratio=(0.9, 1.1)
+                )
+                image = F.resized_crop(image, i, j, h, w, (512, 512))
+                mask = F.resized_crop(mask, i, j, h, w, (512, 512),
+                                      interpolation=transforms.InterpolationMode.NEAREST)
 
-            if random.random() < self.augmentation_prob:
+            # Horizontal flip
+            if random.random() < 0.5:
                 image = F.hflip(image)
                 mask = F.hflip(mask)
 
-            if random.random() > self.augmentation_prob:
+            # Vertical flip
+            if random.random() < 0.5:
                 image = F.vflip(image)
                 mask = F.vflip(mask)
-                
-            transformer = []
 
-        transformer.append(transforms.ToTensor())
-        transformer = transforms.Compose(transformer)
+            # --- Photometric transforms: image only ---
 
-        # print('Mid Image size:', image.size)
-        image = transformer(image)
-        # print('Post second resized Image size:', image.shape)
-        mask = transformer(mask)
+            # Color jitter (brightness, contrast, saturation, hue)
+            image = self.color_jitter(image)
 
-        
-        # print(mask.shape)
+            # Random gamma shift (exposure)
+            if random.random() < 0.4:
+                gamma = random.uniform(0.6, 1.5)
+                image = F.adjust_gamma(image, gamma)
+
+            # Gaussian blur (simulates drone camera focus variation)
+            if random.random() < 0.3:
+                ks = random.choice([3, 5])
+                image = F.gaussian_blur(image, kernel_size=ks)
+
+            # Rare invert
+            if random.random() < 0.05:
+                image = F.invert(image)
+
+        # Convert to tensor
+        to_tensor = transforms.ToTensor()
+        image = to_tensor(image)
+        mask = to_tensor(mask)
+
         if mask.shape[0] > 1:
-            transformer = transforms.Grayscale(num_output_channels=1)
-            mask = transformer(mask)
+            mask = transforms.Grayscale(num_output_channels=1)(mask)
 
         mask[mask < 0.5] = 0
-        mask[mask > 0.5] = 1
+        mask[mask >= 0.5] = 1
 
         return image, mask
     

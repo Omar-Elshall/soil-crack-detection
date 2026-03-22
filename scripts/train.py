@@ -32,7 +32,7 @@ def run_with_validation(args, model, train_dataloaders, valid_dataloaders, plot_
     miou_loss = IoULoss()
 
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.optim_w_decay)
-    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=args.lr_decay, patience=args.num_epochs_decay, verbose=True)
+    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=args.lr_decay, patience=args.num_epochs_decay)
     print('------------  Training started! --------------')
     num_epochs = args.epochs
     alpha = args.alpha
@@ -41,7 +41,7 @@ def run_with_validation(args, model, train_dataloaders, valid_dataloaders, plot_
 
         b_train_loss = []
         if epoch % 20 == 0:
-            alpha -= 0.2
+            alpha = max(0.0, alpha - 0.2)
         for i, (inputs, masks) in enumerate(train_dataloaders):
             inputs, masks = inputs.to(device), masks.to(device)
             
@@ -104,7 +104,7 @@ def run_without_validation(args, model, train_dataloaders, plot_path):
 
     # if args.model_name == 'LMM_Net':
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.optim_w_decay)
-    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=args.lr_decay, patience=args.num_epochs_decay, verbose=True)
+    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=args.lr_decay, patience=args.num_epochs_decay)
 
     print('------------  Training started! --------------')
 
@@ -198,6 +198,7 @@ if __name__ == '__main__':
         train_dataloaders = DataLoader(
             train_dataset,
             batch_size=args.batch_size,
+            shuffle=True,
             num_workers=args.num_workers,
             persistent_workers=args.persistent_workers if args.num_workers > 0 else False,
             pin_memory=args.pin_memory

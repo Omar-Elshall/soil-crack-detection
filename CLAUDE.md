@@ -12,6 +12,7 @@ For deep context on any topic, read the relevant file in `context/`:
 | Evaluation metrics, threshold, diagnostic output | `context/evaluation.md` |
 | Past bugs and fixes | `context/known_issues.md` |
 | Project goals, hardware, history, file layout | `context/project.md` |
+| Session history, what changed, next steps | `context/session_history.md` |
 
 ---
 
