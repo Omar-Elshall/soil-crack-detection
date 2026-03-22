@@ -54,8 +54,7 @@ def eval(args, test_dataloaders):
         with torch.no_grad():
             # Add batch to GPU
             output_mask= model(input_img)
-            output_mask = torch.sigmoid(output_mask)
-            print(f"  sigmoid out min={output_mask.min():.4f}  max={output_mask.max():.4f}  mean={output_mask.mean():.4f}")
+            print(f"  output min={output_mask.min():.4f}  max={output_mask.max():.4f}  mean={output_mask.mean():.4f}")
             print(f"  mask        min={mask.min():.4f}  max={mask.max():.4f}  positive px={mask.sum():.0f}")
             output_mask[output_mask >= 0.5] = 1.
             output_mask[output_mask < 0.5] = 0.
