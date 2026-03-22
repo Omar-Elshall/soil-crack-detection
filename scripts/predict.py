@@ -44,7 +44,7 @@ def predict_tensor(model, image_tensor, device, threshold=0.6):
     image_tensor = image_tensor.to(device)
     with torch.no_grad():
         out = model(image_tensor)
-        out = torch.sigmoid(out)
+        # model applies sigmoid internally — do not apply again
     return (out[0, 0].cpu().numpy() > threshold).astype(np.uint8) * 255
 
 

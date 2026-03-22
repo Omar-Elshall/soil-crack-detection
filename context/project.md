@@ -14,7 +14,7 @@ Senior Design I & II project at the American University of Sharjah (AUS), CSE490
 | Edge compute | NVIDIA Jetson Orin Nano |
 | Ground station | Laptop running Mission Planner |
 
-The Jetson Orin Nano runs inference using this model in real time as the drone flies a survey pattern at fixed altitude (~4m AGL). Results are geotagged and pushed to the farmer dashboard (`dashboard/soil_mapping_ui.html`) over WiFi when the drone returns to the base station.
+The Jetson Orin Nano runs inference using this model in real time as the drone flies a survey pattern at fixed altitude (~4m AGL). Results are geotagged and pushed to a farmer dashboard over WiFi when the drone returns to the base station. The dashboard UI mockup (`soil_mapping_ui.html`) lives in `docs/presentations/` — it is a static report mockup, not production code.
 
 ## Software Stack
 
@@ -51,8 +51,6 @@ soil-crack-detection/
 │   ├── predict.py                 # Inference (single/batch/sample modes)
 │   ├── visualize.py               # Overlay visualizations
 │   └── compare_models.py          # Multi-model comparison
-├── dashboard/
-│   └── soil_mapping_ui.html       # Farmer-facing web UI
 ├── docs/
 │   └── SETUP_README.md            # Legacy setup guide
 ├── configs/
