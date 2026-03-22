@@ -1,0 +1,22 @@
+model:
+  name: EfficientCrackNet
+  input_height: 192
+  input_width: 256
+
+training:
+  epochs: 50
+  batch_size: 8
+  learning_rate: 0.001
+  alpha: 0.8          # initial Dice/IoU loss weight (decays each epoch)
+  validate: false     # enable train/val split
+  run_num: 1
+
+data:
+  data_dir: data/
+  data_name: deepcrack
+
+paths:
+  saved_models: results/saved_models
+  plots: results/plots
+  tensorboard: results/tensorboard
+  predictions: results/predictions
