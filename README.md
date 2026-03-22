@@ -277,8 +277,6 @@ soil-crack-detection/
 │   ├── predict.py                 # Inference: single / batch / sample modes
 │   ├── visualize.py               # Overlay predictions on input images
 │   └── compare_models.py          # Multi-model side-by-side comparison
-├── dashboard/
-│   └── soil_mapping_ui.html       # Farmer-facing web UI (open in browser)
 ├── docs/
 │   └── SETUP_README.md            # Legacy setup notes
 ├── configs/
