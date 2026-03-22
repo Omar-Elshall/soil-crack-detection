@@ -54,7 +54,8 @@ def eval(args, test_dataloaders):
         with torch.no_grad():
             # Add batch to GPU
             output_mask= model(input_img)
-            print(f"  raw output  min={output_mask.min():.4f}  max={output_mask.max():.4f}  mean={output_mask.mean():.4f}")
+            output_mask = torch.sigmoid(output_mask)
+            print(f"  sigmoid out min={output_mask.min():.4f}  max={output_mask.max():.4f}  mean={output_mask.mean():.4f}")
             print(f"  mask        min={mask.min():.4f}  max={mask.max():.4f}  positive px={mask.sum():.0f}")
             output_mask[output_mask >= 0.5] = 1.
             output_mask[output_mask < 0.5] = 0.
@@ -80,7 +81,7 @@ def eval(args, test_dataloaders):
                 axes[1].imshow(gt, cmap='gray')
                 axes[1].set_title('Ground Truth', fontsize=13)
                 axes[1].axis('off')
-                axes[2].imshow(pred, cmap='gray')
+                axes[2].imshow(pred, cmap='gray', vmin=0, vmax=1)
                 axes[2].set_title('Prediction', fontsize=13)
                 axes[2].axis('off')
                 plt.suptitle(img_name, fontsize=11, y=1.01)
