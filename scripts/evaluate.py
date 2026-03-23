@@ -1,18 +1,14 @@
 import torch
 import os
 import argparse
-import pickle
+import csv
 import numpy as np
-import torch.nn as nn
-from torch import optim
-from crack_detection.data.dataset import CustomImageDataset, init_weights, DeepCrackDataset
-from crack_detection.metrics import f1_score, iou_score
+from crack_detection.data.dataset import init_weights, DeepCrackDataset
+from crack_detection.metrics import f1_score
 from crack_detection.models.baselines import UNet_FCN, LMM_Net
 from sklearn.metrics import confusion_matrix, precision_score, recall_score
 from crack_detection.models.efficientcracknet import EfficientCrackNet
-from torchvision import datasets, transforms, models
-from torch.utils.data.sampler import SubsetRandomSampler
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import DataLoader
 from PIL import Image as PILImage
 import matplotlib.pyplot as plt
 import warnings
@@ -35,6 +31,7 @@ def eval(args, test_dataloaders):
     model.eval()
     f1_scores, recall_scores, precision_scores, iou_scores = 0.0, 0.0, 0.0, 0.0
     num_batch = 0.0
+    per_image_results = []
 
     # --- diagnostics ---
     print(f"Dataset size : {len(test_dataloaders.dataset)} images")
@@ -43,7 +40,7 @@ def eval(args, test_dataloaders):
     print()
 
     # Setup output directory for prediction masks
-    output_dir = './results/real_eval_predictions'
+    output_dir = args.output_dir
     os.makedirs(output_dir, exist_ok=True)
     image_paths = test_dataloaders.dataset.image_path_list
     img_idx = 0
@@ -56,8 +53,8 @@ def eval(args, test_dataloaders):
             output_mask= model(input_img)
             print(f"  output min={output_mask.min():.4f}  max={output_mask.max():.4f}  mean={output_mask.mean():.4f}")
             print(f"  mask        min={mask.min():.4f}  max={mask.max():.4f}  positive px={mask.sum():.0f}")
-            output_mask[output_mask >= 0.5] = 1.
-            output_mask[output_mask < 0.5] = 0.
+            output_mask[output_mask >= args.threshold] = 1.
+            output_mask[output_mask < args.threshold] = 0.
 
             # Save prediction mask and side-by-side comparison for each image
             for b in range(output_mask.shape[0]):
@@ -72,8 +69,12 @@ def eval(args, test_dataloaders):
                 pred_png = PILImage.fromarray((pred * 255).astype(np.uint8))
                 pred_png.save(os.path.join(output_dir, f'{img_name}_pred_mask.png'))
 
-                # Save side-by-side comparison: input | ground truth | prediction
-                fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+                # Build overlay: predicted cracks in red on top of input image
+                overlay = orig.copy()
+                overlay[pred == 1] = [1.0, 0.0, 0.0]  # red pixels where crack predicted
+
+                # Save side-by-side comparison: input | ground truth | prediction | overlay
+                fig, axes = plt.subplots(1, 4, figsize=(20, 5))
                 axes[0].imshow(orig)
                 axes[0].set_title('Input Image', fontsize=13)
                 axes[0].axis('off')
@@ -83,6 +84,9 @@ def eval(args, test_dataloaders):
                 axes[2].imshow(pred, cmap='gray', vmin=0, vmax=1)
                 axes[2].set_title('Prediction', fontsize=13)
                 axes[2].axis('off')
+                axes[3].imshow(overlay)
+                axes[3].set_title('Overlay (red=crack)', fontsize=13)
+                axes[3].axis('off')
                 plt.suptitle(img_name, fontsize=11, y=1.01)
                 plt.tight_layout()
                 plt.savefig(os.path.join(output_dir, f'{img_name}_comparison.png'), dpi=150, bbox_inches='tight')
@@ -103,12 +107,24 @@ def eval(args, test_dataloaders):
             union = ground_truth_set + predicted_set - intersection
             union_f = union.astype(np.float32)
             iou = np.where(union_f > 0, intersection / union_f, 0.0)
-            iou_scores += np.mean(iou)
+            batch_miou = np.mean(iou)
+            iou_scores += batch_miou
 
             f1_scores += f1_s
             recall_scores += recall
             precision_scores += precision
             num_batch += 1.0
+
+            # Per-image metrics
+            img_name_for_metric = os.path.splitext(os.path.basename(image_paths[img_idx - 1]))[0]
+            print(f"  [{img_name_for_metric}] F1={f1_s:.4f}  Precision={precision:.4f}  Recall={recall:.4f}  mIoU={batch_miou:.4f}")
+            per_image_results.append({
+                'image': img_name_for_metric,
+                'f1': round(f1_s, 4),
+                'precision': round(precision, 4),
+                'recall': round(recall, 4),
+                'miou': round(batch_miou, 4),
+            })
 
     test_f1_score = (f1_scores/num_batch)
     test_recall_score = (recall_scores/num_batch)
@@ -121,25 +137,23 @@ def eval(args, test_dataloaders):
     print(f'Test mIoU Score is: {round(test_miou_score, 2)}')
     print(f'\nPrediction masks saved to: {output_dir}/')
 
+    # Save per-image metrics to CSV
+    csv_path = os.path.join(output_dir, 'metrics_summary.csv')
+    with open(csv_path, 'w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=['image', 'f1', 'precision', 'recall', 'miou'])
+        writer.writeheader()
+        writer.writerows(per_image_results)
+    print(f'Per-image metrics saved to: {csv_path}')
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Crack Segmentation Work')
-    parser.add_argument('--data_dir', type=str, help='Main directory of input dataset')
-    parser.add_argument('--batch_size', type=int, default=8, help='batch size')
-    parser.add_argument('--learning_rate', type=float, default=0.001,help='learning rate')
-    parser.add_argument('--momentum', type=float, default=0.9,help='Momentum in learning rate')
-    parser.add_argument('--validate', type=bool, default=False, help='whether to validate the model or not')
-    parser.add_argument('--model_name', type=str, help='algorithm')
-    parser.add_argument('--epochs', type=int, help='Num of epochs')
-    parser.add_argument('--alpha', type=float, help='Reduction factor in Loss function')
-    parser.add_argument('--optim_w_decay', type=float, default=2e-4)
-    parser.add_argument('--lr_decay', type=float, default=0.8)
-    parser.add_argument('--num_epochs_decay', type=int, default=5)
-    parser.add_argument('--data_name', type=str, help='Dataset to be used')
-    parser.add_argument('--rgb', type=bool, help='Is image RGB or not')
-    parser.add_argument('--run_num', type=str, help='run number')
-    parser.add_argument('--half', type=bool, default=False, help='use half Model size or not')
-    parser.add_argument('--augment', type=bool, default=False, help='whether augment dataset or not')
-    parser.add_argument('--subset_size', type=int, default=None, help='use random subset of data (e.g., 10)')
+    parser.add_argument('--data_dir', type=str, required=True, help='path to dataset root (must have test/images, test/masks)')
+    parser.add_argument('--model_name', type=str, required=True, help='EfficientCrackNet, UNet, or LMM_Net')
+    parser.add_argument('--data_name', type=str, required=True, help='dataset name (deepcrack)')
+    parser.add_argument('--run_num', type=str, required=True, help='run number — maps to best_model_num_{run_num}.pt')
+    parser.add_argument('--threshold', type=float, default=0.5, help='binarization threshold (default: 0.5)')
+    parser.add_argument('--output_dir', type=str, default='./results/real_eval_predictions', help='directory to save masks and comparisons')
+    parser.add_argument('--subset_size', type=int, default=None, help='evaluate on N random test images only')
 
     args = parser.parse_args()
 
