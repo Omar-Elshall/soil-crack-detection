@@ -177,7 +177,7 @@ def parse_args():
     p.add_argument('--model_path', default='results/saved_models/EfficientCrackNet/best_model_num_1.pt')
     p.add_argument('--image',      default='img_0292',                    help='Image name (single mode)')
     p.add_argument('--num_images', type=int, default=4,                   help='How many random samples (sample mode)')
-    p.add_argument('--threshold',  type=float, default=0.6)
+    p.add_argument('--threshold',  type=float, default=0.5)
     p.add_argument('--seed',       type=int, default=43)
     return p.parse_args()
 

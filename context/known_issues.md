@@ -94,7 +94,19 @@ ln -s "$REAL/test/Masks"   data/test/masks
 
 ---
 
-## 8. `data/` gitignore Pattern Too Broad (FIXED)
+## 8. Floating Point Alpha Stop Condition (FIXED)
+
+**Symptom:** At alpha=0.2, training never stops — keeps printing `=> Alpha -> 0.2, LR reset` forever.
+
+**Root cause:** `0.4 - 0.2` in Python float = `0.20000000000000007`, not exactly `0.2`. So `alpha <= 0.2` is never True and the stopping condition is never triggered.
+
+**Fix:** Use `round(alpha, 1) <= 0.2` instead of `alpha <= 0.2` in `run_without_validation`.
+
+**Status:** Fixed in `scripts/train.py`.
+
+---
+
+## 9. `data/` gitignore Pattern Too Broad (FIXED)
 
 **Symptom:** `crack_detection/data/` package files not staged when running `git add`.
 
