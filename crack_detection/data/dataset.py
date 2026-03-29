@@ -49,19 +49,23 @@ class CustomImageDataset(Dataset):
 class DeepCrackDataset(Dataset):
     def __init__(self, args, data_part=None, subset_size=None):
         self.data_part = data_part
-        self.augmentation_prob = 0.7
+        self.augmentation_prob = 0.85
         self.args = args
         # gives list of entire path to each image along the img_dir
-        if self.data_part == 'train':
-            self.image_path_list = sorted(glob.glob(os.path.join(self.args.data_dir, "train/images/*.png")))
-            self.mask_path_list = sorted(glob.glob(os.path.join(self.args.data_dir, "train/masks/*.png")))
-        elif self.data_part == 'test':
-            self.image_path_list = sorted(glob.glob(os.path.join(self.args.data_dir, "test/images/*.png")))
-            self.mask_path_list = sorted(glob.glob(os.path.join(self.args.data_dir, "test/masks/*.png")))
-        elif self.data_part == 'valid':
-            # Use a subset of training data for validation if no separate validation set exists
-            self.image_path_list = sorted(glob.glob(os.path.join(self.args.data_dir, "train/images/*.png")))
-            self.mask_path_list = sorted(glob.glob(os.path.join(self.args.data_dir, "train/masks/*.png")))
+        split = 'train' if self.data_part in ('train', 'valid') else 'test'
+        img_paths = glob.glob(os.path.join(self.args.data_dir, f"{split}/images/IMG*.png"))
+        mask_lookup = {
+            os.path.splitext(os.path.basename(p))[0].replace('MASK', ''): p
+            for p in glob.glob(os.path.join(self.args.data_dir, f"{split}/masks/MASK*.png"))
+        }
+        # Pair each image with its mask by number, skip images with no matching mask
+        paired = sorted([
+            (p, mask_lookup[os.path.splitext(os.path.basename(p))[0].replace('IMG', '')])
+            for p in img_paths
+            if os.path.splitext(os.path.basename(p))[0].replace('IMG', '') in mask_lookup
+        ])
+        self.image_path_list = [p[0] for p in paired]
+        self.mask_path_list = [p[1] for p in paired]
 
         # Randomly select subset if specified
         if subset_size is not None and subset_size < len(self.image_path_list):
@@ -85,9 +89,11 @@ class DeepCrackDataset(Dataset):
         image = Image.open(self.image_path_list[idx]).convert('RGB')
         mask = Image.open(self.mask_path_list[idx])
 
-        # Always resize to 512x512
-        image = F.resize(image, (512, 512))
-        mask = F.resize(mask, (512, 512), interpolation=transforms.InterpolationMode.NEAREST)
+        # Resize to 512x512 only if needed
+        if image.size != (512, 512):
+            image = F.resize(image, (512, 512))
+        if mask.size != (512, 512):
+            mask = F.resize(mask, (512, 512), interpolation=transforms.InterpolationMode.NEAREST)
 
         if self.data_part == 'train' and random.random() <= self.augmentation_prob:
             # --- Spatial transforms: applied identically to image and mask ---

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from einops import rearrange
 
 def conv_nxn_bn(inp, oup, kernal_size=3, stride=1):
@@ -35,11 +36,16 @@ class Attention(nn.Module):
 
     def forward(self, x):
         qkv = self.to_qkv(x).chunk(3, dim=-1)
-        q, k, v = map(lambda t: rearrange(t, 'b p n (h d) -> b p h n d', h = self.heads), qkv)
+        q, k, v = map(lambda t: rearrange(t, 'b p n (h d) -> b p h n d', h=self.heads), qkv)
 
-        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
-        attn = self.attend(dots)
-        out = torch.matmul(attn, v)
+        # Merge batch and patch dims for scaled_dot_product_attention
+        b, p, h, n, d = q.shape
+        q = q.reshape(b * p, h, n, d)
+        k = k.reshape(b * p, h, n, d)
+        v = v.reshape(b * p, h, n, d)
+        # Flash Attention: O(N) memory, numerically stable, no NaN from overflow
+        out = F.scaled_dot_product_attention(q, k, v)
+        out = out.reshape(b, p, h, n, d)
         out = rearrange(out, 'b p h n d -> b p n (h d)')
         return self.to_out(out)
     

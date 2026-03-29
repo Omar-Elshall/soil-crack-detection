@@ -7,25 +7,40 @@ python scripts/evaluate.py \
   --data_dir data/ \
   --model_name EfficientCrackNet \
   --data_name deepcrack \
-  --run_num 1
+  --run_num real_4
 ```
 
-Use `--run_num real_1` to evaluate the real-trained model. Use `--run_num 1` for the simulated-trained model.
+Use `--run_num real_4` for best real model. Use `--run_num 1` for simulated model.
+
+### CLI Arguments
+
+| Argument | Default | Description |
+|---|---|---|
+| `--data_dir` | required | Path to dataset root |
+| `--model_name` | required | `EfficientCrackNet`, `UNet`, or `LMM_Net` |
+| `--data_name` | required | `deepcrack` |
+| `--run_num` | required | Maps to `best_model_num_{run_num}.pt` |
+| `--threshold` | 0.5 | Binarization threshold |
+| `--output_dir` | `./results/real_eval_predictions` | Where to save masks and comparisons |
+| `--subset_size` | None | Evaluate on N random test images only |
 
 ### What it outputs
-- Prints F1, Recall, Precision, mIoU averaged across all test images
-- Saves to `results/real_eval_predictions/`:
-  - `{image_name}_pred_mask.png` — binary prediction mask (white=crack, black=background)
-  - `{image_name}_comparison.png` — side-by-side: input | ground truth | prediction
+
+- Prints per-image F1, Precision, Recall, mIoU during eval
+- Prints final averaged metrics across all test images
+- Saves to `--output_dir`:
+  - `{image_name}_pred_mask.png` — binary prediction mask
+  - `{image_name}_comparison.png` — 4-panel: input | ground truth | prediction | overlay (red=crack)
+  - `metrics_summary.csv` — per-image metrics table
 
 ### Threshold
-Default threshold is 0.5 — set at lines 59–60 of `scripts/evaluate.py`:
-```python
-output_mask[output_mask >= 0.5] = 1.
-output_mask[output_mask < 0.5] = 0.
+
+Default 0.5. Lower = more sensitive (more cracks detected, more false positives). Higher = more conservative.
+
+```bash
+# Test different thresholds without retraining
+python scripts/evaluate.py --data_dir data/ --model_name EfficientCrackNet --data_name deepcrack --run_num real_4 --threshold 0.3
 ```
-Lower threshold (e.g. 0.3) = more sensitive, detects more cracks but more false positives.
-Higher threshold (e.g. 0.7) = more conservative, fewer false positives but misses hairline cracks.
 
 ---
 
@@ -35,32 +50,18 @@ Three modes via `--mode`:
 
 ### Single image
 ```bash
-python scripts/predict.py \
-  --mode single \
-  --image img_0292 \
-  --data_dir data/ \
-  --output_dir results/predictions/
+python scripts/predict.py --mode single --image img_0292 --data_dir data/
 ```
-Saves `{image_name}_input.png`, `{image_name}_ground_truth.png`, `{image_name}_prediction.png`.
 
 ### Batch (folder of images)
 ```bash
-python scripts/predict.py \
-  --mode batch \
-  --input_dir results/new_images/ \
-  --output_dir results/predictions/
+python scripts/predict.py --mode batch --input_dir results/new_images/
 ```
-Runs inference on every `.png`/`.jpg` in `input_dir`. No ground truth needed.
 
 ### Random sample comparison
 ```bash
-python scripts/predict.py \
-  --mode sample \
-  --data_dir data/ \
-  --num_images 4 \
-  --output_dir results/predictions/
+python scripts/predict.py --mode sample --data_dir data/ --num_images 4
 ```
-Picks `num_images` random test images and saves side-by-side comparisons.
 
 All modes accept `--model_path` (default: `results/saved_models/EfficientCrackNet/best_model_num_1.pt`) and `--threshold` (default: 0.6).
 
@@ -68,57 +69,40 @@ All modes accept `--model_path` (default: `results/saved_models/EfficientCrackNe
 
 ## Metrics Reference
 
-All metrics computed per batch then averaged.
+All metrics computed per image (batch_size=1 in eval), then averaged.
 
-**F1 Score** — harmonic mean of precision and recall. Primary metric. Target: >0.75 on simulated data.
+**F1 Score** — harmonic mean of precision and recall. Primary metric.
 
-**mIoU (mean Intersection over Union)** — mean of per-class IoU (crack class + background class). Computed from confusion matrix. More robust to class imbalance than F1.
+**mIoU** — mean IoU across both classes (crack + background). More robust to class imbalance than F1.
 
-**Precision** — of all predicted crack pixels, how many are actually crack. Low precision = too many false positives (over-detection).
+**Precision** — of predicted crack pixels, how many are actually crack. Low = too many false positives.
 
-**Recall** — of all actual crack pixels, how many did the model find. Low recall = missing cracks (under-detection).
+**Recall** — of actual crack pixels, how many were found. Low = missing cracks.
 
-For the real dataset (9 test images), some images have 0 crack pixels in the ground truth (`positive px=0`). sklearn's `precision_score` returns 0 for these with `zero_division=0`, which pulls the average down. This is expected behavior.
+### Model results history
+
+| Run | F1 | Recall | Precision | mIoU | Notes |
+|-----|-----|--------|-----------|------|-------|
+| `1` (sim) | 0.77 | 0.78 | 0.78 | 0.83 | Simulated data |
+| `real_2` | 0.50 | 0.43 | 0.70 | 0.70 | 36 real images |
+| `real_3` | 0.17 | 0.27 | 0.16 | 0.55 | 101 images, visually better than real_2 |
+| `real_4` | **0.58** | **0.60** | **0.63** | **0.71** | 80 images, all optimizations, 1276 epochs |
 
 ---
 
 ## Diagnostic Output
 
-The eval script prints per-batch diagnostics:
+The eval script prints per-image diagnostics:
 ```
 output min=0.XX  max=0.XX  mean=0.XX
 mask   min=0.00  max=1.00  positive px=NNN
+[IMG0000] F1=0.6123  Precision=0.6500  Recall=0.5800  mIoU=0.7100
 ```
 
-Healthy output for a well-trained model:
-- `min` near 0.0, `max` near 1.0, `mean` between 0.05–0.3 (most pixels are background)
-- `positive px` > 0 for images with actual cracks
+Healthy output:
+- `min` near 0.0, `max` near 1.0, `mean` between 0.05–0.3
 
 Warning signs:
-- `min` and `max` both close to 0.5 → double sigmoid applied (see `context/known_issues.md`)
-- `min` near 0, `max` near 0.1, all below threshold → model predicts nothing (under-detection)
-- `min` near 0.6, `max` near 0.7, all above threshold → model predicts everything (over-detection)
-
----
-
-## Visualize Script
-
-```bash
-python scripts/visualize.py
-```
-Configured via environment variables (or edit defaults at top of file):
-- `DATA_DIR` — dataset root
-- `MODEL_PATH` — checkpoint path
-- `OUTPUT_DIR` — where to save visualizations
-- `NUM_SAMPLES` — how many test images to visualize (default 10)
-
----
-
-## Compare Models Script
-
-```bash
-python scripts/compare_models.py \
-  --data_dir data/ \
-  --run_num 1
-```
-Loads UNet, LMM-Net, and EfficientCrackNet side-by-side on the same test images. Useful for benchmark comparisons.
+- `min` and `max` both near 0.5 → double sigmoid (see `known_issues.md`)
+- All values below threshold → model predicts nothing (under-detection)
+- All values above threshold → model predicts everything (over-detection)

@@ -20,15 +20,15 @@ For deep context on any topic, read the relevant file in `context/`:
 
 1. **`EfficientCrackNet` applies sigmoid internally** — do NOT apply `torch.sigmoid()` again in eval/inference scripts. Double-sigmoid compresses all outputs to [0.5, 0.62] → all-white masks. See `context/known_issues.md`.
 
-2. **Two checkpoints exist:**
-   - `results/saved_models/EfficientCrackNet/best_model_num_1.pt` — trained on simulated data (F1=0.77)
-   - `results/saved_models/EfficientCrackNet/best_model_num_real_1.pt` — trained on real data (36 images)
+2. **Best real checkpoint:** `results/saved_models/EfficientCrackNet/best_model_num_real_4.pt` — F1=0.58 on 20 test images, trained on 80 real images with all optimizations.
 
 3. **`data/` and `results/` are gitignored** — must be set up locally via symlink or copy. See README.md.
 
 4. **Real dataset has capitalized folder names** (`Images/`, `Masks/`) — fails silently on Linux. Use symlink adapter. See `context/dataset.md`.
 
 5. **`pip install -e .` is required** before running any script so `crack_detection` resolves as a package.
+
+6. **Training stops automatically** — no `--epochs` needed. The plateau-based alpha schedule stops training when alpha=0.2 plateaus. See `context/training.md`.
 
 ---
 
@@ -38,14 +38,14 @@ For deep context on any topic, read the relevant file in `context/`:
 # Setup (run once)
 pip install -e .
 
+# Evaluate — best real model
+python scripts/evaluate.py --data_dir data/ --model_name EfficientCrackNet --data_name deepcrack --run_num real_4
+
 # Evaluate — simulated model
 python scripts/evaluate.py --data_dir data/ --model_name EfficientCrackNet --data_name deepcrack --run_num 1
 
-# Evaluate — real model
-python scripts/evaluate.py --data_dir data/ --model_name EfficientCrackNet --data_name deepcrack --run_num real_1
-
-# Train
-python scripts/train.py --data_dir data/ --model_name EfficientCrackNet --epochs 50 --alpha 0.8 --data_name deepcrack --run_num 1
+# Train (best command — stops automatically on plateau)
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True python scripts/train.py --data_dir data/ --model_name EfficientCrackNet --data_name deepcrack --alpha 0.8 --batch_size 12 --learning_rate 5e-4 --num_epochs_decay 10 --num_workers 12 --pin_memory True --persistent_workers True --grad_accum_steps 8 --prefetch_factor 4 --run_num real_4 --alpha_patience 15
 
 # Predict (single image)
 python scripts/predict.py --mode single --image img_0292 --data_dir data/
@@ -55,9 +55,6 @@ python scripts/predict.py --mode batch --input_dir results/new_images/
 
 # Predict (N random samples)
 python scripts/predict.py --mode sample --data_dir data/ --num_images 4
-
-# Monitor training
-tensorboard --logdir=results/tensorboard/EfficientCrackNet/run_1/
 
 # Check GPU
 python -c "import torch; print(torch.cuda.is_available())"
@@ -72,17 +69,17 @@ crack_detection/
   models/
     efficientcracknet.py   # Primary model — sigmoid applied internally in forward()
     baselines.py           # UNet_FCN, LMM_Net
-    mobile_vit.py          # MobileViTBlock (requires einops)
+    mobile_vit.py          # MobileViTBlock — uses Flash Attention (F.scaled_dot_product_attention)
     losses.py              # BCELoss, DiceLoss, IoULoss
   data/
-    dataset.py             # DeepCrackDataset — glob patterns at lines 55-64
+    dataset.py             # DeepCrackDataset — pairing logic at lines 55-68
                            # save_checkpoint, init_weights, save_plots
     transforms.py          # 4-way rotation augmentation
   metrics.py               # f1_score, iou_score
 
 scripts/
-  train.py                 # Output paths: results/saved_models/, results/plots/, results/tensorboard/
-  evaluate.py              # Threshold at lines 59-60; output to results/real_eval_predictions/
+  train.py                 # Plateau-based alpha schedule; stops automatically
+  evaluate.py              # --threshold, --output_dir; saves CSV + 4-panel comparisons
   predict.py               # --mode single|batch|sample
   visualize.py             # Configured via DATA_DIR, MODEL_PATH, OUTPUT_DIR env vars
   compare_models.py        # Loads UNet + LMM_Net + EfficientCrackNet
