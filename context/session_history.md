@@ -123,10 +123,55 @@ Massive improvement over previous best (real_3: F1=0.17). Loss trajectory:
 ### Git history cleanup
 Removed `Co-Authored-By: Claude` lines from all commits using `git filter-branch --msg-filter`. Both branches force-pushed to GitHub.
 
-### Next steps
+### Next steps (at end of session)
 
 1. **Label more images** — currently 80 train / 20 test. Target 150+ train for next run.
 2. **Retrain real_5** with same optimizations on larger dataset.
 3. **Enable branch protection** on GitHub main branch.
-4. **Merge `improve-real-model` into `main`** when ready.
+4. ~~**Merge `improve-real-model` into `main`**~~ — **DONE** (merged via PR #2 on GitHub).
 5. **TensorRT export** for Jetson Orin Nano deployment.
+
+---
+
+## Session: 2026-04-01 | Branch: `improve-real-model`
+
+### What was done
+
+#### Git / repo sync
+- Confirmed PR #2 merged `improve-real-model` → `main` on GitHub. Local `main` was behind — pulled to sync.
+
+#### Jetson Orin Nano — Phase 1 complete
+
+**SSH key auth set up** from WSL → Jetson (no password). SSH alias `jetson` configured in `~/.ssh/config`.
+
+**Repo cloned** on Jetson at `~/soil-crack-detection` via HTTPS.
+
+**PYTHONPATH** set in `~/.profile` and `~/.bashrc`:
+```
+PYTHONPATH=$PYTHONPATH:/home/sdp-w-nano/soil-crack-detection
+```
+
+**torchvision install journey:**
+- Standard `pip install torchvision` → manylinux wheel incompatible with Jetson PyTorch C++ extensions (`operator torchvision::nms does not exist`)
+- Jetson AI Lab index (`pypi.jetson-ai-lab.io/jp6/cu126`) has torch 2.10.0 + torchvision 0.25.0
+- Upgraded both with `--no-deps --upgrade` from Jetson AI Lab index
+- torch 2.10 required `libcudss.so.0` → installed `libcudss0-cuda-12` via apt
+- Added `/usr/lib/aarch64-linux-gnu/libcudss/12` to `LD_LIBRARY_PATH` in `~/.profile`
+
+**Model checkpoint** `best_model_num_real_4.pt` copied to Jetson via scp.
+
+**predict.py verified working** on Jetson with CUDA:
+```bash
+ssh jetson "bash -l -c 'cd ~/soil-crack-detection && python3 scripts/predict.py --mode sample --data_dir data/ --model_path results/saved_models/EfficientCrackNet/best_model_num_real_4.pt --num_images 3'"
+```
+
+**Bug found:** Initial inference used ImageNet normalization (`mean=[0.485,0.456,0.406]`) that the model was never trained with — results were noisy. Dataset uses only `ToTensor()` (divide by 255, no normalization).
+
+**New context file** `context/jetson.md` created with full hardware, software, install notes, and working commands.
+
+### Next steps
+
+1. **Phase 2** — Live camera inference from Arducam IMX477 via CSI (GStreamer pipeline)
+2. **Phase 3** — Jetson ↔ Pixhawk 6C MAVLink over `/dev/ttyTHS1` or `/dev/ttyTHS2`
+3. **Phase 4** — PID tuning for stable flight (QGroundControl)
+4. **Phase 5** — Autonomous offboard control via MAVSDK-Python

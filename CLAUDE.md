@@ -13,6 +13,7 @@ For deep context on any topic, read the relevant file in `context/`:
 | Past bugs and fixes | `context/known_issues.md` |
 | Project goals, hardware, history, file layout | `context/project.md` |
 | Session history, what changed, next steps | `context/session_history.md` |
+| Jetson setup, hardware, deployment | `context/jetson.md` |
 
 ---
 
@@ -29,6 +30,8 @@ For deep context on any topic, read the relevant file in `context/`:
 5. **`pip install -e .` is required** before running any script so `crack_detection` resolves as a package.
 
 6. **Training stops automatically** — no `--epochs` needed. The plateau-based alpha schedule stops training when alpha=0.2 plateaus. See `context/training.md`.
+
+7. **Jetson is set up and running** — SSH: `ssh jetson` (key auth, no password). Repo cloned at `~/soil-crack-detection`. `predict.py` works fully on Jetson with CUDA. See `context/jetson.md`.
 
 ---
 
