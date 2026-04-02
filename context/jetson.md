@@ -30,8 +30,8 @@
 | Package | Version |
 |---|---|
 | Python | 3.10.12 |
-| PyTorch | 2.10.0 (Jetson AI Lab build) |
-| torchvision | 0.25.0 (Jetson AI Lab build) |
+| PyTorch | 2.11.0 (Jetson AI Lab build) |
+| torchvision | 0.26.0 (Jetson AI Lab build) |
 | einops | 0.8.2 |
 
 ### Key env vars (set in `~/.profile` and `~/.bashrc`)
@@ -88,6 +88,20 @@ sudo apt-get install -y libcudss0-cuda-12
 ### Why libcudss was needed
 
 torch 2.10 (Jetson AI Lab build) requires `libcudss.so.0` which is not installed by default in JetPack 6.5. It is available via apt from NVIDIA's CUDA repo (`libcudss0-cuda-12`). Installed to `/usr/lib/aarch64-linux-gnu/libcudss/12/`.
+
+---
+
+## Working Commands on Jetson (Phase 2 — Live Inference)
+
+```bash
+# Run live inference on Jetson (must have a display connected)
+bash -l -c 'cd ~/soil-crack-detection && python3 jetson/live_inference.py'
+
+# Full sensor res (sharpest, slower)
+bash -l -c 'cd ~/soil-crack-detection && python3 jetson/live_inference.py --sensor_mode 0'
+
+# Controls: q=quit, s=save frame+mask+overlay to results/live_captures/
+```
 
 ---
 

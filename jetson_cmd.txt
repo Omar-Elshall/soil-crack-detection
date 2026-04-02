@@ -1,0 +1,20 @@
+sudo tee /boot/extlinux/extlinux.conf << 'EOF'
+TIMEOUT 30
+DEFAULT JetsonIO
+
+MENU TITLE L4T boot options
+
+LABEL primary
+      MENU LABEL primary kernel
+      LINUX /boot/arducam/Image
+      INITRD /boot/initrd
+      APPEND ${cbootargs} root=PARTUUID=070c7d74-7e92-4961-8e32-df4f18646188 rw rootwait rootfstype=ext4 mminit_loglevel=4 console=ttyTCU0,115200 firmware_class.path=/etc/firmware fbcon=map:0 nospectre_bhb video=efifb:off console=tty0 nv-auto-config
+
+LABEL JetsonIO
+        MENU LABEL Custom Header Config: <CSI Camera IMX477 Dual>
+        LINUX /boot/arducam/Image
+        FDT /boot/arducam/dts/dtb/tegra234-p3768-0000+p3767-0005-nv-super.dtb
+        INITRD /boot/initrd
+        APPEND ${cbootargs} root=PARTUUID=070c7d74-7e92-4961-8e32-df4f18646188 rw rootwait rootfstype=ext4 mminit_loglevel=4 console=ttyTCU0,115200 firmware_class.path=/etc/firmware fbcon=map:0 nospectre_bhb video=efifb:off console=tty0 nv-auto-config
+        OVERLAYS /boot/arducam/dts/tegra234-p3767-camera-p3768-imx477-dual.dtbo
+EOF
