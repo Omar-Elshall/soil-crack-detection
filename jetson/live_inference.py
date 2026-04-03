@@ -80,10 +80,20 @@ TRANSFORM = transforms.Compose([
 ])
 
 
+def center_crop_square(frame_bgr: np.ndarray) -> np.ndarray:
+    """Crop the largest centered square from the frame (avoids aspect ratio distortion)."""
+    h, w = frame_bgr.shape[:2]
+    size = min(h, w)
+    y0 = (h - size) // 2
+    x0 = (w - size) // 2
+    return frame_bgr[y0:y0 + size, x0:x0 + size]
+
+
 def predict_pytorch(model, frame_bgr: np.ndarray,
                     device: torch.device, threshold: float,
                     fp16: bool = False) -> np.ndarray:
-    tensor = TRANSFORM(frame_bgr).unsqueeze(0).to(device)
+    cropped = center_crop_square(frame_bgr)
+    tensor = TRANSFORM(cropped).unsqueeze(0).to(device)
     if fp16:
         tensor = tensor.half()
     with torch.no_grad():
@@ -151,11 +161,19 @@ class TRTInferencer:
 # ---------------------------------------------------------------------------
 
 def overlay_mask(frame_bgr: np.ndarray, mask: np.ndarray, alpha: float = 0.45) -> np.ndarray:
+    """Overlay mask on the center-cropped square region of the frame."""
     h, w = frame_bgr.shape[:2]
-    mask_resized = cv2.resize(mask, (w, h), interpolation=cv2.INTER_NEAREST)
-    overlay = frame_bgr.copy()
-    overlay[mask_resized > 127] = (0, 0, 220)   # red in BGR
-    return cv2.addWeighted(overlay, alpha, frame_bgr, 1 - alpha, 0)
+    size = min(h, w)
+    y0 = (h - size) // 2
+    x0 = (w - size) // 2
+
+    mask_resized = cv2.resize(mask, (size, size), interpolation=cv2.INTER_NEAREST)
+    display = frame_bgr.copy()
+    roi = display[y0:y0 + size, x0:x0 + size]
+    roi_overlay = roi.copy()
+    roi_overlay[mask_resized > 127] = (0, 0, 220)
+    display[y0:y0 + size, x0:x0 + size] = cv2.addWeighted(roi_overlay, alpha, roi, 1 - alpha, 0)
+    return display
 
 
 # ---------------------------------------------------------------------------
