@@ -51,9 +51,11 @@ def build_gst_pipeline(sensor_mode: int, wbmode: int = 1) -> str:
     fps = {0: 21, 1: 30, 2: 60}[sensor_mode]
     return (
         f"nvarguscamerasrc sensor-id=0 sensor-mode={sensor_mode} wbmode={wbmode} "
-        f"tnr-mode=0 ee-mode=0 "
+        f"tnr-mode=1 tnr-strength=1.0 ee-mode=1 ee-strength=0.1 "
         f"! video/x-raw(memory:NVMM),width={w},height={h},framerate={fps}/1 "
-        f"! nvvidconv interpolation-method=5 "
+        f"! nvvidconv left=496 right=3544 top=0 bottom=3040 "
+        f"! video/x-raw(memory:NVMM),width=512,height=512 "
+        f"! nvvidconv "
         f"! video/x-raw,format=BGRx "
         f"! videoconvert "
         f"! video/x-raw,format=BGR "
@@ -76,7 +78,6 @@ def load_pytorch_model(model_path: str, device: torch.device) -> EfficientCrackN
 
 TRANSFORM = transforms.Compose([
     transforms.ToPILImage(),
-    transforms.Resize((512, 512)),
     transforms.ToTensor(),
 ])
 
