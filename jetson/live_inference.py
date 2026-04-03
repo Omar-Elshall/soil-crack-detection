@@ -41,13 +41,14 @@ from crack_detection.models.efficientcracknet import EfficientCrackNet
 # ---------------------------------------------------------------------------
 
 SENSOR_MODE_DIMS = {
-    0: (3840, 2160),
-    1: (1920, 1080),
+    0: (4032, 3040),
+    1: (3840, 2160),
+    2: (1920, 1080),
 }
 
 def build_gst_pipeline(sensor_mode: int, wbmode: int = 1) -> str:
     w, h = SENSOR_MODE_DIMS[sensor_mode]
-    fps = {0: 30, 1: 60}[sensor_mode]
+    fps = {0: 21, 1: 30, 2: 60}[sensor_mode]
     return (
         f"nvarguscamerasrc sensor-id=0 sensor-mode={sensor_mode} wbmode={wbmode} "
         f"tnr-mode=0 ee-mode=0 "
@@ -291,8 +292,8 @@ def parse_args():
     p.add_argument("--engine",      default=None,
                    help="Path to TensorRT .trt engine (omit to use PyTorch)")
     p.add_argument("--model_path",  default="results/saved_models/EfficientCrackNet/best_model_num_real_4.pt")
-    p.add_argument("--sensor_mode", type=int, default=1, choices=[0, 1],
-                   help="0=3840x2160@30fps  1=1920x1080@60fps")
+    p.add_argument("--sensor_mode", type=int, default=0, choices=[0, 1, 2],
+                   help="0=4032x3040@21fps (default)  1=3840x2160@30fps  2=1920x1080@60fps")
     p.add_argument("--wbmode",      type=int, default=1,
                    help="White balance: 1=auto, 5=daylight")
     p.add_argument("--threshold",   type=float, default=0.5)
