@@ -1,1 +1,1 @@
-gst-launch-1.0 nvarguscamerasrc sensor-id=0 sensor-mode=0 wbmode=1 tnr-mode=0 ee-mode=0 ! 'video/x-raw(memory:NVMM),width=4032,height=3040,framerate=21/1' ! nvvidconv ! 'video/x-raw(memory:NVMM),width=4032,height=3040' ! nveglglessink
+gst-launch-1.0 nvarguscamerasrc sensor-id=0 sensor-mode=0 wbmode=1 tnr-mode=0 ee-mode=0 ! 'video/x-raw(memory:NVMM),width=4032,height=3040,framerate=21/1' ! nvvidconv ! 'video/x-raw(memory:NVMM),width=4032,height=3040' ! nveglglessink force-aspect-ratio=true
