@@ -7,17 +7,16 @@ accessed exclusively via the nvarguscamerasrc GStreamer element.
 Usage:
     python3 jetson/live_inference.py
     python3 jetson/live_inference.py --model_path results/saved_models/EfficientCrackNet/best_model_num_real_4.pt
-    python3 jetson/live_inference.py --sensor_mode 0   # full 4032x3040 @ 21fps (sharpest)
-    python3 jetson/live_inference.py --sensor_mode 2   # 1920x1080 @ 60fps (faster)
+    python3 jetson/live_inference.py --sensor_mode 0   # 3840x2160 @ 30fps (sharper)
+    python3 jetson/live_inference.py --sensor_mode 1   # 1920x1080 @ 60fps (default, faster)
 
 Controls:
     q — quit
     s — save current frame + mask to results/live_captures/
 
-Sensor modes (IMX477):
-    0 — 4032x3040 @ 21fps  (full res, best quality, slowest)
-    1 — 3840x2160 @ 30fps
-    2 — 1920x1080 @ 60fps  (default — good balance of fps and quality)
+Sensor modes (IMX477 on this install):
+    0 — 3840x2160 @ 30fps  (4K, higher quality)
+    1 — 1920x1080 @ 60fps  (default — best balance of fps and quality)
 """
 
 import argparse
@@ -37,14 +36,13 @@ from crack_detection.models.efficientcracknet import EfficientCrackNet
 # ---------------------------------------------------------------------------
 
 SENSOR_MODE_DIMS = {
-    0: (4032, 3040),
-    1: (3840, 2160),
-    2: (1920, 1080),
+    0: (3840, 2160),
+    1: (1920, 1080),
 }
 
 def build_gst_pipeline(sensor_mode: int, wbmode: int = 1) -> str:
     w, h = SENSOR_MODE_DIMS[sensor_mode]
-    fps = {0: 21, 1: 30, 2: 60}[sensor_mode]
+    fps = {0: 30, 1: 60}[sensor_mode]
     return (
         f"nvarguscamerasrc sensor-id=0 sensor-mode={sensor_mode} wbmode={wbmode} "
         f"! video/x-raw(memory:NVMM),width={w},height={h},framerate={fps}/1 "
@@ -173,8 +171,8 @@ def run(args):
 def parse_args():
     p = argparse.ArgumentParser(description="Live crack detection on Jetson")
     p.add_argument("--model_path", default="results/saved_models/EfficientCrackNet/best_model_num_real_4.pt")
-    p.add_argument("--sensor_mode", type=int, default=2, choices=[0, 1, 2],
-                   help="Camera sensor mode: 0=4032x3040@21fps, 1=3840x2160@30fps, 2=1920x1080@60fps")
+    p.add_argument("--sensor_mode", type=int, default=1, choices=[0, 1],
+                   help="Camera sensor mode: 0=3840x2160@30fps, 1=1920x1080@60fps")
     p.add_argument("--wbmode", type=int, default=1,
                    help="White balance mode (1=auto, 5=daylight). Auto takes ~15s to settle.")
     p.add_argument("--threshold", type=float, default=0.5,
