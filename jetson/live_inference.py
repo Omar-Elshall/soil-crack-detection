@@ -56,7 +56,7 @@ def build_gst_pipeline(sensor_mode: int, wbmode: int = 1) -> str:
         f"! video/x-raw,format=BGRx "
         f"! videoconvert "
         f"! video/x-raw,format=BGR "
-        f"! appsink drop=1"
+        f"! appsink max-buffers=1 drop=true sync=false"
     )
 
 
@@ -177,6 +177,8 @@ class FrameGrabber:
             if ret:
                 with self.lock:
                     self.frame = frame
+            else:
+                time.sleep(0.005)
 
     def get(self):
         with self.lock:
