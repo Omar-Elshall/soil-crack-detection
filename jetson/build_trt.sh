@@ -27,9 +27,7 @@ $TRTEXEC \
     --onnx="$ONNX" \
     --saveEngine="$ENGINE" \
     --fp16 \
-    --inputIOFormats=fp16:chw \
-    --outputIOFormats=fp16:chw \
-    --workspace=1024 \
+    --memPoolSize=workspace:1024M \
     --iterations=10 \
     --warmUp=500
 
