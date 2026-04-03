@@ -49,8 +49,9 @@ def build_gst_pipeline(sensor_mode: int, wbmode: int = 1) -> str:
     fps = {0: 30, 1: 60}[sensor_mode]
     return (
         f"nvarguscamerasrc sensor-id=0 sensor-mode={sensor_mode} wbmode={wbmode} "
+        f"tnr-mode=0 ee-mode=0 "
         f"! video/x-raw(memory:NVMM),width={w},height={h},framerate={fps}/1 "
-        f"! nvvidconv "
+        f"! nvvidconv interpolation-method=5 "
         f"! video/x-raw,format=BGRx "
         f"! videoconvert "
         f"! video/x-raw,format=BGR "
