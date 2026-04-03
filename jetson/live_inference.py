@@ -266,6 +266,7 @@ def run(args):
         cv2.putText(display, f"{backend} | FPS: {fps:.1f}", (10, 35),
                     cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
 
+        cv2.namedWindow("Crack Detection — Live", cv2.WINDOW_NORMAL)
         cv2.imshow("Crack Detection — Live", display)
 
         key = cv2.waitKey(1) & 0xFF
