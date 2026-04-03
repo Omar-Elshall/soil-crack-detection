@@ -79,11 +79,14 @@ TRANSFORM = transforms.Compose([
 
 
 def predict_pytorch(model, frame_bgr: np.ndarray,
-                    device: torch.device, threshold: float) -> np.ndarray:
+                    device: torch.device, threshold: float,
+                    fp16: bool = False) -> np.ndarray:
     tensor = TRANSFORM(frame_bgr).unsqueeze(0).to(device)
+    if fp16:
+        tensor = tensor.half()
     with torch.no_grad():
         out = model(tensor)   # sigmoid applied inside model — do NOT apply again
-    return (out[0, 0].cpu().numpy() > threshold).astype(np.uint8) * 255
+    return (out[0, 0].float().cpu().numpy() > threshold).astype(np.uint8) * 255
 
 
 # ---------------------------------------------------------------------------
@@ -170,8 +173,11 @@ def run(args):
     else:
         print(f"Loading PyTorch model: {args.model_path}")
         model = load_pytorch_model(args.model_path, device)
-        predict = lambda frame: predict_pytorch(model, frame, device, args.threshold)
-        print("PyTorch model loaded. (tip: build TRT engine with jetson/build_trt.sh for faster inference)")
+        if args.fp16:
+            model = model.half()
+            print("Running in FP16 mode.")
+        predict = lambda frame: predict_pytorch(model, frame, device, args.threshold, args.fp16)
+        print("Model ready.")
 
     pipeline = build_gst_pipeline(args.sensor_mode, args.wbmode)
     print(f"Opening GStreamer pipeline:\n  {pipeline}")
@@ -197,7 +203,7 @@ def run(args):
         now = time.time()
         fps = 1.0 / max(now - prev_time, 1e-6)
         prev_time = now
-        backend = "TRT" if args.engine else "PyTorch"
+        backend = "TRT" if args.engine else ("PyTorch FP16" if args.fp16 else "PyTorch FP32")
         cv2.putText(display, f"{backend} | FPS: {fps:.1f}", (10, 35),
                     cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
 
@@ -232,6 +238,8 @@ def parse_args():
                    help="White balance: 1=auto, 5=daylight")
     p.add_argument("--threshold",   type=float, default=0.5)
     p.add_argument("--overlay_alpha", type=float, default=0.45)
+    p.add_argument("--fp16",        action="store_true",
+                   help="Run PyTorch model in FP16 (faster on Orin Nano tensor cores)")
     return p.parse_args()
 
 

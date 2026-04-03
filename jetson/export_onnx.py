@@ -27,6 +27,12 @@ def export(args):
 
     dummy = torch.zeros(1, 3, 512, 512, device=device)
 
+    # Disable Flash/efficient attention — forces decomposition into matmul+softmax
+    # which TensorRT 10 can compile, unlike the fused sdp attention patterns.
+    torch.backends.cuda.enable_flash_sdp(False)
+    torch.backends.cuda.enable_mem_efficient_sdp(False)
+    torch.backends.cuda.enable_math_sdp(True)
+
     print(f"Exporting to {args.output} ...")
     torch.onnx.export(
         model,
@@ -36,6 +42,7 @@ def export(args):
         input_names=["image"],
         output_names=["mask"],
         do_constant_folding=True,
+        dynamo=False,   # use legacy TorchScript exporter — avoids aten::unsafe_view in output
     )
     print("Export done.")
 
