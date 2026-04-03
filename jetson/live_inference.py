@@ -81,25 +81,51 @@ TRANSFORM = transforms.Compose([
 ])
 
 
-def center_crop_square(frame_bgr: np.ndarray) -> np.ndarray:
-    """Crop the largest centered square from the frame (avoids aspect ratio distortion)."""
+def center_crop(frame_bgr: np.ndarray, size: int) -> tuple:
+    """Crop a centered square of given size. Returns (crop, y0, x0)."""
     h, w = frame_bgr.shape[:2]
-    size = min(h, w)
     y0 = (h - size) // 2
     x0 = (w - size) // 2
-    return frame_bgr[y0:y0 + size, x0:x0 + size]
+    return frame_bgr[y0:y0 + size, x0:x0 + size], y0, x0
 
 
 def predict_pytorch(model, frame_bgr: np.ndarray,
                     device: torch.device, threshold: float,
                     fp16: bool = False) -> np.ndarray:
-    cropped = center_crop_square(frame_bgr)
-    tensor = TRANSFORM(cropped).unsqueeze(0).to(device)
+    """Single 512x512 center crop inference."""
+    crop, _, _ = center_crop(frame_bgr, 512)
+    tensor = TRANSFORM(crop).unsqueeze(0).to(device)
     if fp16:
         tensor = tensor.half()
     with torch.no_grad():
-        out = model(tensor)   # sigmoid applied inside model — do NOT apply again
+        out = model(tensor)
     return (out[0, 0].float().cpu().numpy() > threshold).astype(np.uint8) * 255
+
+
+def predict_tiled(model, frame_bgr: np.ndarray,
+                  device: torch.device, threshold: float,
+                  fp16: bool = False) -> tuple:
+    """
+    Crop 1024x1024 from center, split into 2x2 grid of 512x512 tiles,
+    run inference on each, stitch into a 1024x1024 mask.
+    Returns (mask_1024, y0, x0) where y0/x0 is the crop offset in the frame.
+    """
+    crop, y0, x0 = center_crop(frame_bgr, 1024)
+    mask = np.zeros((1024, 1024), dtype=np.uint8)
+
+    for row in range(2):
+        for col in range(2):
+            ty, tx = row * 512, col * 512
+            tile = crop[ty:ty + 512, tx:tx + 512]
+            tensor = TRANSFORM(tile).unsqueeze(0).to(device)
+            if fp16:
+                tensor = tensor.half()
+            with torch.no_grad():
+                out = model(tensor)
+            tile_mask = (out[0, 0].float().cpu().numpy() > threshold).astype(np.uint8) * 255
+            mask[ty:ty + 512, tx:tx + 512] = tile_mask
+
+    return mask, y0, x0
 
 
 # ---------------------------------------------------------------------------
@@ -161,16 +187,13 @@ class TRTInferencer:
 # Overlay helper
 # ---------------------------------------------------------------------------
 
-def overlay_mask(frame_bgr: np.ndarray, mask: np.ndarray, alpha: float = 0.45) -> np.ndarray:
-    """Overlay mask on the center-cropped square region of the frame."""
-    h, w = frame_bgr.shape[:2]
-    size = min(h, w)
-    y0 = (h - size) // 2
-    x0 = (w - size) // 2
-
-    mask_resized = cv2.resize(mask, (size, size), interpolation=cv2.INTER_NEAREST)
+def overlay_mask(frame_bgr: np.ndarray, mask: np.ndarray,
+                 y0: int, x0: int, alpha: float = 0.45) -> np.ndarray:
+    """Overlay mask onto the region of frame at (y0, x0) matching mask size."""
+    size = mask.shape[0]
     display = frame_bgr.copy()
     roi = display[y0:y0 + size, x0:x0 + size]
+    mask_resized = cv2.resize(mask, (size, size), interpolation=cv2.INTER_NEAREST)
     roi_overlay = roi.copy()
     roi_overlay[mask_resized > 127] = (0, 0, 220)
     display[y0:y0 + size, x0:x0 + size] = cv2.addWeighted(roi_overlay, alpha, roi, 1 - alpha, 0)
@@ -231,7 +254,11 @@ def run(args):
         if args.compile:
             print("Compiling model with torch.compile() — first inference will be slow...")
             model = torch.compile(model)
-        predict = lambda frame: predict_pytorch(model, frame, device, args.threshold, args.fp16)
+        if args.tiling:
+            print("Tiling mode: 1024x1024 center crop → 2x2 grid of 512x512 tiles (4 inferences/frame)")
+            predict = lambda frame: predict_tiled(model, frame, device, args.threshold, args.fp16)
+        else:
+            predict = lambda frame: (predict_pytorch(model, frame, device, args.threshold, args.fp16), *center_crop(frame, 512)[1:])
         print("Model ready.")
 
     pipeline = build_gst_pipeline(args.sensor_mode, args.wbmode)
@@ -256,8 +283,8 @@ def run(args):
         if frame is None:
             continue
 
-        mask = predict(frame)
-        display = overlay_mask(frame, mask, alpha=args.overlay_alpha)
+        mask, y0, x0 = predict(frame)
+        display = overlay_mask(frame, mask, y0, x0, alpha=args.overlay_alpha)
 
         now = time.time()
         fps = 1.0 / max(now - prev_time, 1e-6)
@@ -303,6 +330,8 @@ def parse_args():
                    help="Run PyTorch model in FP16 (faster on Orin Nano tensor cores)")
     p.add_argument("--compile",     action="store_true",
                    help="Apply torch.compile() for extra speedup (slow first frame)")
+    p.add_argument("--tiling",      action="store_true",
+                   help="Tile 1024x1024 center crop into 2x2 512x512 tiles (4x coverage, ~4x slower)")
     return p.parse_args()
 
 
