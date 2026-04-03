@@ -25,6 +25,7 @@ Sensor modes (IMX477 on this install):
 
 import argparse
 import os
+import threading
 import time
 
 import cv2
@@ -158,6 +159,35 @@ def overlay_mask(frame_bgr: np.ndarray, mask: np.ndarray, alpha: float = 0.45) -
 
 
 # ---------------------------------------------------------------------------
+# Threaded frame grabber — keeps latest frame ready so inference never waits
+# ---------------------------------------------------------------------------
+
+class FrameGrabber:
+    def __init__(self, cap):
+        self.cap = cap
+        self.frame = None
+        self.lock = threading.Lock()
+        self.running = True
+        self.thread = threading.Thread(target=self._grab, daemon=True)
+        self.thread.start()
+
+    def _grab(self):
+        while self.running:
+            ret, frame = self.cap.read()
+            if ret:
+                with self.lock:
+                    self.frame = frame
+
+    def get(self):
+        with self.lock:
+            return self.frame
+
+    def stop(self):
+        self.running = False
+        self.thread.join()
+
+
+# ---------------------------------------------------------------------------
 # Main loop
 # ---------------------------------------------------------------------------
 
@@ -177,6 +207,9 @@ def run(args):
         if args.fp16:
             model = model.half()
             print("Running in FP16 mode.")
+        if args.compile:
+            print("Compiling model with torch.compile() — first inference will be slow...")
+            model = torch.compile(model)
         predict = lambda frame: predict_pytorch(model, frame, device, args.threshold, args.fp16)
         print("Model ready.")
 
@@ -188,14 +221,18 @@ def run(args):
         print("ERROR: Could not open camera via GStreamer.")
         return
 
+    grabber = FrameGrabber(cap)
     os.makedirs("results/live_captures", exist_ok=True)
     print("Running. Press 'q' to quit, 's' to save a frame.")
 
+    # Wait for first frame
+    while grabber.get() is None:
+        time.sleep(0.05)
+
     prev_time = time.time()
     while True:
-        ret, frame = cap.read()
-        if not ret:
-            print("WARNING: Failed to grab frame.")
+        frame = grabber.get()
+        if frame is None:
             continue
 
         mask = predict(frame)
@@ -204,7 +241,7 @@ def run(args):
         now = time.time()
         fps = 1.0 / max(now - prev_time, 1e-6)
         prev_time = now
-        backend = "TRT" if args.engine else ("PyTorch FP16" if args.fp16 else "PyTorch FP32")
+        backend = "TRT" if args.engine else ("FP16" if args.fp16 else "FP32")
         cv2.putText(display, f"{backend} | FPS: {fps:.1f}", (10, 35),
                     cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
 
@@ -220,6 +257,7 @@ def run(args):
             cv2.imwrite(f"results/live_captures/{ts}_overlay.png", display)
             print(f"Saved: {ts}")
 
+    grabber.stop()
     cap.release()
     cv2.destroyAllWindows()
 
@@ -241,6 +279,8 @@ def parse_args():
     p.add_argument("--overlay_alpha", type=float, default=0.45)
     p.add_argument("--fp16",        action="store_true",
                    help="Run PyTorch model in FP16 (faster on Orin Nano tensor cores)")
+    p.add_argument("--compile",     action="store_true",
+                   help="Apply torch.compile() for extra speedup (slow first frame)")
     return p.parse_args()
 
 
