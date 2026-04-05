@@ -105,9 +105,34 @@ bash -l -c 'cd ~/soil-crack-detection && python3 jetson/live_inference.py --sens
 
 ---
 
+## Working Commands on Jetson (Phase 3 — Autonomous Mission)
+
+```bash
+# Dry run (camera + web UI only, no flight)
+bash -l -c 'cd ~/soil-crack-detection && python3 jetson/mission.py --dry_run'
+
+# Full mission (arm + takeoff 30cm + fly 1m forward + land)
+bash -l -c 'cd ~/soil-crack-detection && python3 jetson/mission.py'
+
+# Web UI: open http://192.168.1.222:5000 in browser on same WiFi network
+# Click "START MISSION" button in the UI to trigger the flight sequence
+```
+
+### Pixhawk connection
+- Pixhawk 6C → USB-C → Jetson baseboard USB-A → `/dev/ttyACM0`, baud 921600
+- MAVSDK sends offboard commands; Mission Planner on Windows connects separately via radio (read-only)
+- RC transmitter: set `COM_RC_OVERRIDE=3` in PX4 so stick movement immediately takes over from offboard
+
+### Dependencies (install once on Jetson)
+```bash
+pip install mavsdk flask
+```
+
+---
+
 ## Next Steps
 
-1. **Phase 2** — Live camera inference from Arducam IMX477 via CSI (GStreamer pipeline)
-2. **Phase 3** — Jetson ↔ Pixhawk 6C MAVLink communication over `/dev/ttyTHS1` or `/dev/ttyTHS2`
-3. **Phase 4** — PID tuning for stable flight (done in QGroundControl, not code)
-4. **Phase 5** — Autonomous offboard control from Jetson via MAVSDK-Python
+1. **Phase 2** — Live camera inference from Arducam IMX477 via CSI ✓ DONE
+2. **Phase 3** — Autonomous mission: 1m forward flight + crack detection + web UI ✓ DONE (`jetson/mission.py`)
+3. **Phase 4** — PID tuning for stable flight (in QGroundControl); set `COM_RC_OVERRIDE=3`
+4. **Phase 5** — Extend mission: GPS-tagged crack coordinates, multi-waypoint paths
