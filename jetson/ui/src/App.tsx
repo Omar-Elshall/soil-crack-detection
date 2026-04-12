@@ -4,6 +4,7 @@ import { Sidebar } from "./components/Sidebar";
 import LivePage from "./pages/LivePage";
 import HistoryPage from "./pages/HistoryPage";
 import PostFlightPage from "./pages/PostFlightPage";
+import PlanPage from "./pages/PlanPage";
 
 // ── Theme context ────────────────────────────────────────────────────────────
 interface ThemeCtx { dark: boolean; toggle: () => void }
@@ -32,6 +33,7 @@ export default function App() {
           <main className="flex-1 flex flex-col overflow-hidden">
             <Routes>
               <Route path="/"             element={<LivePage />} />
+              <Route path="/plan"         element={<PlanPage />} />
               <Route path="/history"      element={<HistoryPage />} />
               <Route path="/missions/:id" element={<PostFlightPage />} />
             </Routes>

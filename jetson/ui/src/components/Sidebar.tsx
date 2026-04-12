@@ -1,9 +1,10 @@
 import { NavLink } from "react-router-dom";
-import { Radio, BookOpen, Sun, Moon } from "lucide-react";
+import { Radio, BookOpen, Map, Sun, Moon } from "lucide-react";
 import { useTheme } from "../App";
 
 const links = [
   { to: "/",        label: "Live",    icon: Radio    },
+  { to: "/plan",    label: "Plan",    icon: Map      },
   { to: "/history", label: "History", icon: BookOpen },
 ];
 

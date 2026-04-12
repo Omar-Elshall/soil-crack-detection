@@ -17,3 +17,8 @@ export const land     = ()                                          => cmd("land
 export const rtl      = ()                                          => cmd("rtl");
 export const gotoNED  = (north_m: number, east_m: number, alt_m: number) =>
   cmd("goto", { north_m, east_m, alt_m });
+
+export interface Waypoint { lat: number; lon: number; alt: number }
+export const uploadMission  = (waypoints: Waypoint[], takeoff_alt = 4.0) =>
+  cmd("upload-mission", { waypoints, takeoff_alt });
+export const startMission   = () => cmd("start-mission");

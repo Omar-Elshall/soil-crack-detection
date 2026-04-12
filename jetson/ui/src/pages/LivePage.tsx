@@ -43,7 +43,7 @@ export default function LivePage() {
       <div className="flex-1 flex overflow-hidden">
 
         {/* Left — camera + metrics + log */}
-        <div className="w-72 shrink-0 flex flex-col gap-3 p-3 overflow-y-auto border-r border-parchment-darker">
+        <div className="w-72 shrink-0 flex flex-col gap-3 p-3 overflow-hidden border-r border-parchment-darker">
           <div className="pt-1">
             <h1 className="font-display text-xl font-bold text-ink tracking-tight">Live Survey</h1>
             <p className="text-[10px] font-mono text-ink-muted uppercase tracking-widest mt-0.5">
@@ -65,7 +65,7 @@ export default function LivePage() {
 
           <MissionControl activeMissionId={activeMissionId} loading={loading} onStart={start} onStop={stop} />
 
-          <div className="flex-1 min-h-[140px]">
+          <div className="min-h-0 flex-1">
             <CrackLog history={history} telem={telem} />
           </div>
         </div>

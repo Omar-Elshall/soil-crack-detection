@@ -44,7 +44,7 @@ export default {
         },
       },
       fontFamily: {
-        display: ['"Syne"', "system-ui", "sans-serif"],
+        display: ['"Outfit"', "system-ui", "sans-serif"],
         sans:    ['"Plus Jakarta Sans"', "system-ui", "sans-serif"],
         mono:    ['"Space Mono"', "monospace"],
       },

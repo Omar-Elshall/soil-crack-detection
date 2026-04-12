@@ -99,3 +99,105 @@ class FlightController:
             return {"ok": False, "message": msg}
         ok = self.conn.send_command_long(mavutil.mavlink.MAV_CMD_NAV_RETURN_TO_LAUNCH)
         return {"ok": ok, "message": "RTL" if ok else "RTL failed"}
+
+    def upload_mission(self, waypoints: list[dict], takeoff_alt: float = 4.0) -> dict:
+        """Upload a list of {lat, lon, alt} waypoints as an AUTO mission.
+        Automatically prepends a takeoff waypoint and appends RTL.
+        waypoints: [{"lat": float, "lon": float, "alt": float}, ...]
+        """
+        ok, msg = self._check()
+        if not ok:
+            return {"ok": False, "message": msg}
+
+        master = self.conn.master
+
+        # Build full mission item list:
+        # 0 = home (current position, dummy)
+        # 1 = takeoff
+        # 2..N = survey waypoints
+        # N+1 = RTL
+        items = []
+
+        # Item 0: home (set to current lat/lon/0, ArduPilot fills it)
+        items.append({
+            "seq": 0,
+            "frame": mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+            "command": mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,
+            "current": 0, "autocontinue": 1,
+            "param1": 0, "param2": 0, "param3": 0, "param4": 0,
+            "x": 0, "y": 0, "z": 0,
+        })
+
+        # Item 1: takeoff
+        items.append({
+            "seq": 1,
+            "frame": mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+            "command": mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
+            "current": 1, "autocontinue": 1,
+            "param1": 0, "param2": 0, "param3": 0, "param4": 0,
+            "x": 0, "y": 0, "z": takeoff_alt,
+        })
+
+        # Survey waypoints
+        for i, wp in enumerate(waypoints):
+            items.append({
+                "seq": i + 2,
+                "frame": mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+                "command": mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,
+                "current": 0, "autocontinue": 1,
+                "param1": 0, "param2": 0, "param3": 0, "param4": float("nan"),
+                "x": float(wp["lat"]), "y": float(wp["lon"]), "z": float(wp.get("alt", takeoff_alt)),
+            })
+
+        # RTL at end
+        items.append({
+            "seq": len(items),
+            "frame": mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+            "command": mavutil.mavlink.MAV_CMD_NAV_RETURN_TO_LAUNCH,
+            "current": 0, "autocontinue": 1,
+            "param1": 0, "param2": 0, "param3": 0, "param4": 0,
+            "x": 0, "y": 0, "z": 0,
+        })
+
+        n = len(items)
+
+        try:
+            # Clear existing mission
+            master.mav.mission_clear_all_send(master.target_system, master.target_component)
+            ack = master.recv_match(type="MISSION_ACK", blocking=True, timeout=5)
+            if not ack:
+                return {"ok": False, "message": "No ACK after MISSION_CLEAR_ALL"}
+
+            # Send count
+            master.mav.mission_count_send(master.target_system, master.target_component, n)
+
+            # Send each item as ArduPilot requests it
+            for _ in range(n):
+                req = master.recv_match(type=["MISSION_REQUEST", "MISSION_REQUEST_INT"], blocking=True, timeout=5)
+                if not req:
+                    return {"ok": False, "message": f"Timeout waiting for MISSION_REQUEST (sent {_}/{n})"}
+                idx = req.seq
+                it = items[idx]
+                master.mav.mission_item_int_send(
+                    master.target_system,
+                    master.target_component,
+                    it["seq"],
+                    it["frame"],
+                    it["command"],
+                    it["current"],
+                    it["autocontinue"],
+                    it["param1"], it["param2"], it["param3"], it["param4"],
+                    int(it["x"] * 1e7),   # lat in degE7
+                    int(it["y"] * 1e7),   # lon in degE7
+                    it["z"],
+                )
+
+            # Wait for final ACK
+            ack = master.recv_match(type="MISSION_ACK", blocking=True, timeout=5)
+            if not ack or ack.type != mavutil.mavlink.MAV_MISSION_ACCEPTED:
+                return {"ok": False, "message": f"Mission not accepted (ack={ack.type if ack else 'none'})"}
+
+            return {"ok": True, "message": f"Mission uploaded: {n} items ({len(waypoints)} waypoints)"}
+
+        except Exception as e:
+            return {"ok": False, "message": str(e)}

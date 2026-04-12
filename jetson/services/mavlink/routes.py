@@ -28,6 +28,17 @@ class TakeoffBody(BaseModel):
     altitude_m: float = 0.3
 
 
+class WaypointItem(BaseModel):
+    lat: float
+    lon: float
+    alt: float = 4.0
+
+
+class MissionBody(BaseModel):
+    waypoints: list[WaypointItem]
+    takeoff_alt: float = 4.0
+
+
 @router.get("/status")
 async def status():
     if poller is None:
@@ -87,3 +98,24 @@ async def cmd_land():
 @router.post("/command/rtl")
 async def cmd_rtl():
     return flight.rtl() if flight else {"ok": False, "message": "Service not ready"}
+
+
+@router.post("/command/upload-mission")
+async def cmd_upload_mission(body: MissionBody):
+    if not flight:
+        return {"ok": False, "message": "Service not ready"}
+    wps = [{"lat": w.lat, "lon": w.lon, "alt": w.alt} for w in body.waypoints]
+    return flight.upload_mission(wps, body.takeoff_alt)
+
+
+@router.post("/command/start-mission")
+async def cmd_start_mission():
+    """Set AUTO mode to execute the uploaded mission."""
+    if not flight:
+        return {"ok": False, "message": "Service not ready"}
+    ok = flight.conn.send_command_long(
+        __import__("pymavlink").mavutil.mavlink.MAV_CMD_DO_SET_MODE,
+        param1=__import__("pymavlink").mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+        param2=3,  # AUTO mode
+    )
+    return {"ok": ok, "message": "AUTO mode" if ok else "Failed"}
