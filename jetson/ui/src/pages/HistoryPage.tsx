@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { listMissions, type MissionMeta, csvUrl, geojsonUrl, pdfUrl } from "../api/missions";
-import { FileText, Map, Download, RefreshCw, CheckCircle, Clock } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { listMissions, type MissionMeta } from "../api/missions";
+import { CheckCircle, Clock, RefreshCw, ChevronRight } from "lucide-react";
 
 function duration(s: number) {
   const m = Math.floor(s / 60);
@@ -9,6 +10,7 @@ function duration(s: number) {
 }
 
 function MissionRow({ m }: { m: MissionMeta }) {
+  const navigate = useNavigate();
   const complete = m.status === "complete";
   const date = new Date(m.start_time).toLocaleString(undefined, {
     month: "short", day: "numeric",
@@ -16,20 +18,19 @@ function MissionRow({ m }: { m: MissionMeta }) {
   });
 
   return (
-    <div className="bg-white/60 border border-parchment-darker rounded-md px-4 py-3 flex items-center gap-4">
-
-      {/* Status icon */}
+    <div
+      onClick={() => navigate(`/missions/${m.id}`)}
+      className="bg-white/60 border border-parchment-darker rounded-md px-4 py-3 flex items-center gap-4 cursor-pointer hover:bg-parchment-dark hover:border-ink-faint/30 transition-colors group"
+    >
       <div className={`shrink-0 ${complete ? "text-moss" : "text-terracotta"}`}>
         {complete ? <CheckCircle size={16} /> : <Clock size={16} />}
       </div>
 
-      {/* ID + date */}
       <div className="min-w-0 flex-1">
         <div className="font-mono text-xs text-ink font-medium truncate">{m.id}</div>
         <div className="text-[10px] text-ink-muted mt-0.5">{date}</div>
       </div>
 
-      {/* Stats */}
       <div className="hidden sm:flex items-center gap-4 shrink-0">
         <div className="text-center">
           <div className="font-mono text-sm text-ink">{m.total_detections}</div>
@@ -47,35 +48,7 @@ function MissionRow({ m }: { m: MissionMeta }) {
         </div>
       </div>
 
-      {/* Export buttons */}
-      {complete && (
-        <div className="flex items-center gap-1 shrink-0">
-          <a
-            href={csvUrl(m.id)}
-            download
-            title="Download CSV"
-            className="p-1.5 rounded text-ink-muted hover:text-ink hover:bg-parchment-dark transition-colors"
-          >
-            <Download size={13} />
-          </a>
-          <a
-            href={geojsonUrl(m.id)}
-            download
-            title="Download GeoJSON"
-            className="p-1.5 rounded text-ink-muted hover:text-ink hover:bg-parchment-dark transition-colors"
-          >
-            <Map size={13} />
-          </a>
-          <a
-            href={pdfUrl(m.id)}
-            download
-            title="Download PDF Report"
-            className="p-1.5 rounded text-ink-muted hover:text-ink hover:bg-parchment-dark transition-colors"
-          >
-            <FileText size={13} />
-          </a>
-        </div>
-      )}
+      <ChevronRight size={14} className="text-ink-faint group-hover:text-ink-muted transition-colors shrink-0" />
     </div>
   );
 }
@@ -94,8 +67,6 @@ export default function HistoryPage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-
-      {/* Header */}
       <div className="px-6 pt-6 pb-4 border-b border-parchment-darker flex items-end justify-between">
         <div>
           <h1 className="font-display text-2xl text-ink italic">Mission History</h1>
@@ -112,7 +83,6 @@ export default function HistoryPage() {
         </button>
       </div>
 
-      {/* List */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {loading && missions.length === 0 ? (
           <div className="text-xs font-mono text-ink-faint text-center mt-12">Loading…</div>

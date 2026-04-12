@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { API } from "../api/config";
 import { Maximize2, Minimize2 } from "lucide-react";
 
-export function CameraFeed() {
+interface Props {
+  crackRatioPct?: number;
+}
+
+export function CameraFeed({ crackRatioPct = 0 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -20,6 +24,12 @@ export function CameraFeed() {
       img.removeEventListener("load",  onLoad);
     };
   }, []);
+
+  // Badge ring color: green → amber → terracotta based on coverage
+  const badgeColor =
+    crackRatioPct > 20 ? "#C4622D" :
+    crackRatioPct > 5  ? "#D4932A" :
+    "#3D7A5A";
 
   return (
     <div className={`relative bg-ink rounded-md overflow-hidden border border-parchment-darker ${
@@ -41,10 +51,26 @@ export function CameraFeed() {
         />
       )}
 
-      {/* HUD overlay — top */}
-      <div className="absolute top-2 left-2 right-2 flex justify-between items-start pointer-events-none">
-        <span className="text-[9px] font-mono text-white/60 bg-black/30 px-1.5 py-0.5 rounded">
-          LIVE · EfficientCrackNet
+      {/* Animated crack ratio badge — top-left with color ring */}
+      <div className="absolute top-2 left-2 pointer-events-none">
+        <div
+          className="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-mono font-medium bg-black/50 text-white transition-all duration-500"
+          style={{
+            boxShadow: `0 0 0 1.5px ${badgeColor}`,
+          }}
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full transition-colors duration-500"
+            style={{ backgroundColor: badgeColor }}
+          />
+          {crackRatioPct.toFixed(1)}%
+        </div>
+      </div>
+
+      {/* Top-right label */}
+      <div className="absolute top-2 right-8 pointer-events-none">
+        <span className="text-[9px] font-mono text-white/40 bg-black/20 px-1.5 py-0.5 rounded">
+          EfficientCrackNet
         </span>
       </div>
 
@@ -57,10 +83,9 @@ export function CameraFeed() {
       </button>
 
       {expanded && (
-        <button
-          onClick={() => setExpanded(false)}
+        <div
           className="absolute inset-0 z-[-1]"
-          aria-label="Close"
+          onClick={() => setExpanded(false)}
         />
       )}
     </div>

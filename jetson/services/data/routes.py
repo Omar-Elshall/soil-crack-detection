@@ -1,16 +1,18 @@
 """
 routes.py — FastAPI routes for Data service (port 8003).
-  POST /missions/start              — start a new mission
-  POST /missions/{id}/stop          — stop mission, finalize meta
-  POST /missions/{id}/detect        — log a detection event
-  GET  /missions                    — list all missions
-  GET  /missions/{id}               — get mission meta
-  GET  /missions/{id}/export/csv    — download detections.csv
-  GET  /missions/{id}/export/geojson — download GeoJSON
-  GET  /missions/{id}/export/pdf    — download PDF report
+  POST /missions/start                  — start a new mission
+  POST /missions/{id}/stop              — stop mission, finalize meta
+  POST /missions/{id}/detect            — log a detection event
+  GET  /missions                        — list all missions
+  GET  /missions/{id}                   — get mission meta
+  GET  /missions/{id}/detections        — get detections as JSON array
+  GET  /missions/{id}/export/csv        — download detections.csv
+  GET  /missions/{id}/export/geojson    — download GeoJSON
+  GET  /missions/{id}/export/pdf        — download PDF report
   GET  /missions/{id}/masks/{filename} — serve mask PNG
 """
 
+import csv
 import os
 
 from fastapi import APIRouter, HTTPException
@@ -69,6 +71,31 @@ async def get_mission(mission_id: str):
     if meta is None:
         raise HTTPException(status_code=404, detail="Mission not found")
     return meta
+
+
+# ── Detections JSON ──────────────────────────────────────────────────────────
+
+@router.get("/missions/{mission_id}/detections")
+async def get_detections(mission_id: str):
+    mission_dir = recorder.mission_dir(mission_id)
+    csv_path = os.path.join(mission_dir, "detections.csv")
+    if not os.path.exists(csv_path):
+        raise HTTPException(status_code=404, detail="No detections found")
+    rows = []
+    with open(csv_path, newline="") as f:
+        for row in csv.DictReader(f):
+            rows.append({
+                "timestamp":       row.get("timestamp", ""),
+                "lat":             float(row.get("lat", 0)),
+                "lon":             float(row.get("lon", 0)),
+                "alt_m":           float(row.get("alt_m", 0)),
+                "north_m":         float(row.get("north_m", 0)),
+                "east_m":          float(row.get("east_m", 0)),
+                "heading_deg":     float(row.get("heading_deg", 0)),
+                "crack_ratio_pct": float(row.get("crack_ratio_pct", 0)),
+                "mask_filename":   row.get("mask_filename", ""),
+            })
+    return rows
 
 
 # ── Exports ──────────────────────────────────────────────────────────────────

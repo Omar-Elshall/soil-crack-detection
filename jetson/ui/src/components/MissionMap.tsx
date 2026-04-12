@@ -1,9 +1,10 @@
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, useMap } from "react-leaflet";
+import type { LatLngExpression } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect } from "react";
 import type { Telemetry } from "../hooks/useTelemetry";
 
-interface DetectionPoint {
+export interface DetectionPoint {
   lat: number;
   lon: number;
   crack_ratio_pct: number;
@@ -11,9 +12,15 @@ interface DetectionPoint {
 }
 
 interface Props {
-  telem: Telemetry;
+  telem?: Telemetry;
   points?: DetectionPoint[];
+  /** Show drone position marker (live page only) */
+  showDrone?: boolean;
+  /** Center on this point if no drone / GPS */
+  defaultCenter?: [number, number];
 }
+
+const DEFAULT_CENTER: [number, number] = [24.4539, 54.3773]; // Abu Dhabi
 
 function DroneMarker({ telem }: { telem: Telemetry }) {
   const map = useMap();
@@ -27,67 +34,84 @@ function DroneMarker({ telem }: { telem: Telemetry }) {
 
   return (
     <CircleMarker
-      center={[telem.lat, telem.lon]}
-      radius={7}
+      center={[telem.lat, telem.lon] as LatLngExpression}
+      radius={8}
       pathOptions={{ color: "#2B6CB0", fillColor: "#2B6CB0", fillOpacity: 0.9, weight: 2 }}
     >
       <Popup>
         <div className="font-mono text-xs">
-          <div>Drone</div>
+          <div className="font-bold">Drone</div>
           <div>{telem.lat.toFixed(6)}, {telem.lon.toFixed(6)}</div>
-          <div>Alt: {telem.alt_m.toFixed(1)}m</div>
+          <div>Alt: {telem.alt_m.toFixed(1)}m · {telem.mode}</div>
         </div>
       </Popup>
     </CircleMarker>
   );
 }
 
-export function MissionMap({ telem, points = [] }: Props) {
+export function MissionMap({ telem, points = [], showDrone = false, defaultCenter }: Props) {
   const center: [number, number] =
-    telem.lat !== 0 ? [telem.lat, telem.lon] : [24.4539, 54.3773]; // Abu Dhabi default
+    telem && telem.lat !== 0
+      ? [telem.lat, telem.lon]
+      : defaultCenter ?? DEFAULT_CENTER;
+
+  // Build flight path from points that have GPS
+  const pathCoords: LatLngExpression[] = points
+    .filter((p) => p.lat !== 0)
+    .map((p) => [p.lat, p.lon] as [number, number]);
 
   return (
     <div className="w-full h-full rounded-md overflow-hidden border border-parchment-darker">
       <MapContainer
-        center={center}
+        center={center as LatLngExpression}
         zoom={18}
         style={{ width: "100%", height: "100%" }}
         zoomControl={false}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; OpenStreetMap contributors'
+          attribution="&copy; OpenStreetMap contributors"
         />
 
-        {/* Detection points */}
-        {points.map((p, i) => {
+        {/* Flight path polyline */}
+        {pathCoords.length > 1 && (
+          <Polyline
+            positions={pathCoords}
+            pathOptions={{ color: "#C4622D", weight: 2, opacity: 0.5, dashArray: "4 4" }}
+          />
+        )}
+
+        {/* Detection points — radius ∝ crack_ratio */}
+        {points.filter((p) => p.lat !== 0).map((p, i) => {
           const intensity = Math.min(p.crack_ratio_pct / 100, 1);
-          const r = Math.floor(196 + (intensity * 0));
-          const g = Math.floor(98 - intensity * 98);
-          const b = Math.floor(45 - intensity * 45);
+          const radius = 4 + intensity * 8;
+          // terracotta gradient: low = faded, high = deep
+          const opacity = 0.4 + intensity * 0.5;
           return (
             <CircleMarker
               key={i}
-              center={[p.lat, p.lon]}
-              radius={5}
+              center={[p.lat, p.lon] as LatLngExpression}
+              radius={radius}
               pathOptions={{
-                color: `rgb(${r},${g},${b})`,
-                fillColor: `rgb(${r},${g},${b})`,
-                fillOpacity: 0.7,
+                color: "#C4622D",
+                fillColor: "#C4622D",
+                fillOpacity: opacity,
                 weight: 1,
+                opacity: 0.8,
               }}
             >
               <Popup>
                 <div className="font-mono text-xs">
-                  <div className="font-bold">{p.crack_ratio_pct.toFixed(1)}% coverage</div>
-                  <div>{p.timestamp.slice(0, 19)}</div>
+                  <div className="font-bold text-terracotta">{p.crack_ratio_pct.toFixed(1)}% coverage</div>
+                  <div className="text-ink-muted">{p.timestamp.slice(0, 19)}</div>
                 </div>
               </Popup>
             </CircleMarker>
           );
         })}
 
-        <DroneMarker telem={telem} />
+        {/* Live drone position */}
+        {showDrone && telem && <DroneMarker telem={telem} />}
       </MapContainer>
     </div>
   );

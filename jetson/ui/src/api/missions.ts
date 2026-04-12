@@ -37,6 +37,19 @@ export async function getMission(id: string): Promise<MissionMeta> {
   return r.json();
 }
 
+export interface DetectionRow {
+  timestamp: string;
+  lat: number; lon: number; alt_m: number;
+  north_m: number; east_m: number; heading_deg: number;
+  crack_ratio_pct: number; mask_filename: string;
+}
+
+export async function getDetections(id: string): Promise<DetectionRow[]> {
+  const r = await fetch(`${API.data}/missions/${id}/detections`);
+  if (!r.ok) return [];
+  return r.json();
+}
+
 export function csvUrl(id: string)     { return `${API.data}/missions/${id}/export/csv`; }
 export function geojsonUrl(id: string) { return `${API.data}/missions/${id}/export/geojson`; }
 export function pdfUrl(id: string)     { return `${API.data}/missions/${id}/export/pdf`; }
