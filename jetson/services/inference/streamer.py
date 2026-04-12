@@ -57,13 +57,6 @@ def build_overlay(frame_bgr: np.ndarray, mask: np.ndarray, crack_ratio: float, f
     colored[mask > 127] = (46, 98, 196)   # terracotta in BGR: #C4622D → BGR (46, 98, 196)
     overlay = cv2.addWeighted(overlay, 0.55, colored, 0.45, 0)
 
-    # HUD text
-    pct = crack_ratio * 100
-    color = (46, 98, 196) if crack_ratio > 0.05 else (90, 122, 61)  # terracotta or green
-    cv2.putText(overlay, f"{pct:.1f}% cracks", (10, 30),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-    cv2.putText(overlay, f"{fps:.1f} fps", (10, 55),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (120, 120, 120), 1)
     return overlay
 
 

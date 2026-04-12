@@ -40,7 +40,16 @@ PID_DATA=$!
 UI_DIR="$ROOT/jetson/ui/dist"
 if [ -d "$UI_DIR" ]; then
   echo "[UI]  Static UI        → http://0.0.0.0:5173"
-  python3 -m http.server 5173 --directory "$UI_DIR" &
+  python3 -c "
+import http.server, os
+os.chdir('$UI_DIR')
+class H(http.server.SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header('Cache-Control','no-cache, no-store, must-revalidate')
+        super().end_headers()
+    def log_message(self, *a): pass
+http.server.HTTPServer(('0.0.0.0', 5173), H).serve_forever()
+" &
   PID_UI=$!
 else
   echo "[UI]  dist/ not found — run 'npm run build' in jetson/ui first"
