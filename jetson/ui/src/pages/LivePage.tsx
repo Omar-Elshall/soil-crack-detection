@@ -38,7 +38,7 @@ export default function LivePage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <StatusBar statusMessages={telem.status_messages} />
+      <StatusBar statusMessages={telem.status_messages} armed={telem.armed} mode={telem.mode} />
 
       <div className="flex-1 flex overflow-hidden">
 

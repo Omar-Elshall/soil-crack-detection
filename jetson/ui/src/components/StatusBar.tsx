@@ -3,7 +3,7 @@ import { useServiceHealth } from "../hooks/useServiceHealth";
 import type { StatusMessage } from "../hooks/useTelemetry";
 import { X, AlertTriangle, Info } from "lucide-react";
 
-interface Props { statusMessages?: StatusMessage[] }
+interface Props { statusMessages?: StatusMessage[]; armed?: boolean; mode?: string }
 
 function Dot({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -16,7 +16,7 @@ function Dot({ ok, label }: { ok: boolean; label: string }) {
   );
 }
 
-export function StatusBar({ statusMessages = [] }: Props) {
+export function StatusBar({ statusMessages = [], armed = false, mode }: Props) {
   const health = useServiceHealth();
   const [dismissed, setDismissed] = useState<number>(0); // dismiss messages older than ts
 
@@ -42,9 +42,25 @@ export function StatusBar({ statusMessages = [] }: Props) {
     <div className="shrink-0">
       {/* Service health bar */}
       <div className="h-8 px-4 border-b border-parchment-darker bg-parchment-dark/60 flex items-center justify-between">
-        <span className="text-[10px] font-mono text-ink-faint uppercase tracking-widest">
-          {health.inference && health.mavlink && health.data ? "All systems nominal" : "Service degraded"}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] font-mono text-ink-faint uppercase tracking-widest">
+            {health.inference && health.mavlink && health.data ? "All systems nominal" : "Service degraded"}
+          </span>
+          {/* Armed status — always visible */}
+          <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-sm border text-[10px] font-mono font-bold uppercase tracking-widest transition-colors ${
+            armed
+              ? "bg-red-500/15 border-red-500/40 text-red-400"
+              : "bg-moss/10 border-moss/25 text-moss"
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${armed ? "bg-red-400 animate-pulse" : "bg-moss"}`} />
+            {armed ? "ARMED" : "SAFE"}
+          </div>
+          {mode && (
+            <span className="text-[10px] font-mono text-ink-faint uppercase tracking-widest">
+              {mode}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-4">
           <Dot ok={health.inference} label="Camera" />
           <Dot ok={health.mavlink}   label="MAVLink" />

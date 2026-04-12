@@ -100,37 +100,50 @@ class FlightController:
         ok = self.conn.send_command_long(mavutil.mavlink.MAV_CMD_NAV_RETURN_TO_LAUNCH)
         return {"ok": ok, "message": "RTL" if ok else "RTL failed"}
 
+    def set_stabilize_mode(self) -> dict:
+        ok, msg = self._check()
+        if not ok:
+            return {"ok": False, "message": msg}
+        ok = self.conn.send_command_long(
+            mavutil.mavlink.MAV_CMD_DO_SET_MODE,
+            param1=mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+            param2=0,  # STABILIZE = 0
+        )
+        return {"ok": ok, "message": "Set STABILIZE mode" if ok else "Failed"}
+
+    def arm_force(self) -> dict:
+        """Arm bypassing pre-arm GPS checks (for ground/indoor tests)."""
+        ok, msg = self._check()
+        if not ok:
+            return {"ok": False, "message": msg}
+        ok = self.conn.send_command_long(
+            mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+            param1=1,    # arm
+            param2=21196,  # ArduPilot force-arm magic number — bypasses pre-arm checks
+        )
+        return {"ok": ok, "message": "Force armed" if ok else "Force arm failed"}
+
     def test_flight(self) -> dict:
-        """Safe hover test (no GPS required): GUIDED → ARM → Takeoff 2m → Hover 5s → Land.
+        """Motor spin test — no GPS required.
+        STABILIZE mode + force-arm → spin 5 s → disarm.
         Runs synchronously — call via asyncio.to_thread from FastAPI.
         """
         ok, msg = self._check()
         if not ok:
             return {"ok": False, "message": msg}
 
-        step = self.set_guided_mode()
+        step = self.set_stabilize_mode()
         if not step["ok"]:
-            return {"ok": False, "message": f"GUIDED failed: {step['message']}"}
-        time.sleep(1.5)
+            return {"ok": False, "message": f"STABILIZE failed: {step['message']}"}
+        time.sleep(1.0)
 
-        step = self.arm()
+        step = self.arm_force()
         if not step["ok"]:
             return {"ok": False, "message": f"Arm failed: {step['message']}"}
-        time.sleep(2.0)
+        time.sleep(5.0)   # motors spin for 5 s
 
-        step = self.takeoff(2.0)
-        if not step["ok"]:
-            self.disarm()
-            return {"ok": False, "message": f"Takeoff failed: {step['message']}"}
-
-        # Wait for drone to reach altitude (up to 12s)
-        time.sleep(12.0)
-
-        # Hover
-        time.sleep(5.0)
-
-        self.land()
-        return {"ok": True, "message": "Test flight complete: climbed 2m, hovered 5s, landing"}
+        self.disarm()
+        return {"ok": True, "message": "Motor test complete — armed 5 s in STABILIZE, disarmed"}
 
     def upload_mission(self, waypoints: list[dict], takeoff_alt: float = 4.0) -> dict:
         """Upload a list of {lat, lon, alt} waypoints as an AUTO mission.
