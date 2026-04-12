@@ -22,6 +22,7 @@ export function useMissionLogger(
 
   useEffect(() => {
     if (!activeMissionId || !latest) return;
+    if (latest.crack_ratio_pct < 4) return;   // only log frames with ≥ 4% crack coverage
 
     const now = Date.now();
     if (now - lastLogRef.current < intervalMs) return;
