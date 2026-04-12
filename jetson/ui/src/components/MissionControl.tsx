@@ -12,9 +12,9 @@ export function MissionControl({ activeMissionId, loading, onStart, onStop }: Pr
 
   return (
     <div className={`rounded-md border p-3 flex items-center justify-between gap-3 transition-colors ${
-      active ? "bg-terracotta/8 border-terracotta/30" : "bg-white/60 border-parchment-darker"
+      active ? "bg-terracotta/10 border-terracotta/30" : "bg-surface/80 border-parchment-darker"
     }`}>
-      <div>
+      <div className="min-w-0">
         <div className="text-[10px] font-mono uppercase tracking-widest text-ink-muted">
           {active ? "Mission Active" : "Mission"}
         </div>
@@ -27,18 +27,19 @@ export function MissionControl({ activeMissionId, loading, onStart, onStop }: Pr
         <button
           onClick={onStop}
           disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-ink text-white text-xs font-mono font-medium border border-ink hover:bg-ink-soft transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono font-medium text-white border border-chrome-border disabled:opacity-50 transition-colors"
+          style={{ background: "#0D1117" }}
         >
-          <Square size={11} className="fill-current" />
+          <Square size={10} className="fill-current" />
           Stop
         </button>
       ) : (
         <button
           onClick={onStart}
           disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-terracotta text-white text-xs font-mono font-medium border border-terracotta hover:bg-terracotta-dark transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-terracotta text-white text-xs font-mono font-medium border border-terracotta hover:bg-terracotta-dark disabled:opacity-50 transition-colors"
         >
-          <Play size={11} className="fill-current" />
+          <Play size={10} className="fill-current" />
           Start
         </button>
       )}

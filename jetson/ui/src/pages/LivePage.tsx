@@ -20,7 +20,6 @@ export default function LivePage() {
 
   useMissionLogger(activeMissionId, latest, telem);
 
-  // Accumulate GPS-tagged detection points for live map
   const mapPointsRef = useRef<DetectionPoint[]>([]);
   const prevMissionRef = useRef<string | null>(null);
 
@@ -43,11 +42,10 @@ export default function LivePage() {
 
       <div className="flex-1 flex overflow-hidden">
 
-        {/* Left column — camera + metrics + log */}
+        {/* Left — camera + metrics + log */}
         <div className="w-72 shrink-0 flex flex-col gap-3 p-3 overflow-y-auto border-r border-parchment-darker">
-
           <div className="pt-1">
-            <h1 className="font-display text-xl text-ink italic">Live Survey</h1>
+            <h1 className="font-display text-xl font-bold text-ink tracking-tight">Live Survey</h1>
             <p className="text-[10px] font-mono text-ink-muted uppercase tracking-widest mt-0.5">
               EfficientCrackNet · Real-time
             </p>
@@ -56,30 +54,17 @@ export default function LivePage() {
           <CameraFeed crackRatioPct={latest?.crack_ratio_pct ?? 0} />
 
           <div className="grid grid-cols-2 gap-2">
-            <MetricCard
-              label="Coverage"
-              value={latest?.crack_ratio_pct.toFixed(1) ?? "—"}
-              unit="%"
-              accent={(latest?.crack_ratio_pct ?? 0) > 10}
-            />
-            <MetricCard label="FPS" value={latest?.fps.toFixed(1) ?? "—"} unit="fps" />
+            <MetricCard label="Coverage" value={latest?.crack_ratio_pct.toFixed(1) ?? "—"} unit="%" accent={(latest?.crack_ratio_pct ?? 0) > 10} />
+            <MetricCard label="FPS"      value={latest?.fps.toFixed(1) ?? "—"} unit="fps" />
           </div>
 
-          <div className="rounded-md border border-parchment-darker bg-white/50 p-2">
-            <div className="text-[9px] font-mono text-ink-faint uppercase tracking-widest mb-1">
-              Coverage — last 300 frames
-            </div>
+          <div className="rounded-md border border-parchment-darker bg-surface/70 p-2">
+            <div className="text-[9px] font-mono text-ink-faint uppercase tracking-widest mb-1">Coverage · last 300 frames</div>
             <CrackRatioChart history={history} />
           </div>
 
-          <MissionControl
-            activeMissionId={activeMissionId}
-            loading={loading}
-            onStart={start}
-            onStop={stop}
-          />
+          <MissionControl activeMissionId={activeMissionId} loading={loading} onStart={start} onStop={stop} />
 
-          {/* Live detection log */}
           <div className="flex-1 min-h-[140px]">
             <CrackLog history={history} telem={telem} />
           </div>
@@ -90,17 +75,16 @@ export default function LivePage() {
           <MissionMap telem={telem} points={mapPointsRef.current} showDrone />
         </div>
 
-        {/* Right column — telemetry + flight */}
+        {/* Right — telemetry + flight */}
         <div className="w-64 shrink-0 flex flex-col gap-3 p-3 overflow-y-auto border-l border-parchment-darker">
-
           <div className="pt-1">
-            <h2 className="font-display text-base text-ink italic">Telemetry</h2>
+            <h2 className="font-display text-base font-bold text-ink tracking-tight">Telemetry</h2>
           </div>
 
           <TelemetryPanel telem={telem} />
 
           <div className="border-t border-parchment-darker pt-3">
-            <h2 className="font-display text-base text-ink italic mb-3">Flight</h2>
+            <h2 className="font-display text-base font-bold text-ink tracking-tight mb-3">Flight</h2>
             <FlightControls armed={telem.armed} mode={telem.mode} />
           </div>
         </div>

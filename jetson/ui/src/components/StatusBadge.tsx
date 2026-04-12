@@ -10,10 +10,16 @@ export function StatusBadge({ value, trueLabel, falseLabel, variant = "mode" }: 
   const label = typeof value === "string" ? value : isActive ? (trueLabel ?? "ON") : (falseLabel ?? "OFF");
 
   const colors: Record<string, string> = {
-    armed:   isActive ? "bg-red-100 text-red-700 border-red-300"   : "bg-ink/5 text-ink-muted border-ink-faint/30",
-    gps:     isActive ? "bg-moss/10 text-moss border-moss/30"      : "bg-ink/5 text-ink-muted border-ink-faint/30",
+    armed:   isActive
+      ? "bg-red-500/15 text-red-400 border-red-500/30"
+      : "bg-ink/5 text-ink-muted border-parchment-darker",
+    gps:     isActive
+      ? "bg-moss/15 text-moss border-moss/30"
+      : "bg-ink/5 text-ink-muted border-parchment-darker",
     mode:    "bg-parchment-dark text-ink-soft border-parchment-darker",
-    mission: isActive ? "bg-terracotta/10 text-terracotta border-terracotta/30" : "bg-ink/5 text-ink-muted border-ink-faint/30",
+    mission: isActive
+      ? "bg-terracotta/15 text-terracotta border-terracotta/30"
+      : "bg-ink/5 text-ink-muted border-parchment-darker",
   };
 
   return (

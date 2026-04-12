@@ -1,24 +1,58 @@
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ── Light mode (default) ─────────────────────────────────────────── */
 :root {
-  --parchment: #F9F6F1;
-  --parchment-dark: #EEE8DE;
-  --terracotta: #C4622D;
-  --terracotta-light: #D97A47;
-  --ink: #2C2C2C;
-  --ink-soft: #4A4A4A;
-  --ink-muted: #7A7A7A;
-  --ink-faint: #AAAAAA;
-  --moss: #4E6E4E;
+  /* Backgrounds */
+  --parchment:        237 242 248;   /* #EDF2F8 cool slate-blue-gray */
+  --parchment-dark:   218 228 238;   /* #DAE4EE */
+  --parchment-darker: 195 210 224;   /* #C3D2E0 */
+
+  /* Accent — cyan, not orange */
+  --accent:           8 145 178;     /* #0891B2 cyan-600 */
+  --accent-light:     14 165 233;    /* #0EA5E9 sky-500 */
+  --accent-dark:      7 105 130;     /* #076982 */
+
+  /* Text */
+  --ink:              15 23 42;      /* #0F172A slate-900 */
+  --ink-soft:         51 65 85;      /* #334155 slate-700 */
+  --ink-muted:        100 116 139;   /* #64748B slate-500 */
+  --ink-faint:        148 163 184;   /* #94A3B8 slate-400 */
+
+  /* Status */
+  --positive:         5 150 105;     /* #059669 emerald-600 */
+  --info:             2 132 199;     /* #0284C7 sky-600 */
+
+  /* Card surface */
+  --surface:          255 255 255;   /* white */
 }
 
-* {
-  box-sizing: border-box;
+/* ── Dark mode ────────────────────────────────────────────────────── */
+.dark {
+  --parchment:        10 14 26;      /* #0A0E1A */
+  --parchment-dark:   17 24 39;      /* #111827 */
+  --parchment-darker: 30 41 59;      /* #1E293B */
+
+  --accent:           6 182 212;     /* #06B6D4 cyan-500 — pops on dark */
+  --accent-light:     34 211 238;    /* #22D3EE */
+  --accent-dark:      8 145 178;     /* #0891B2 */
+
+  --ink:              226 232 240;   /* #E2E8F0 slate-200 */
+  --ink-soft:         186 200 216;   /* #BAC8D8 */
+  --ink-muted:        127 147 171;   /* #7F93AB */
+  --ink-faint:        60 80 104;     /* #3C5068 */
+
+  --positive:         52 211 153;    /* #34D399 emerald-400 */
+  --info:             56 189 248;    /* #38BDF8 sky-400 */
+
+  --surface:          22 30 46;      /* #161E2E dark card */
 }
+
+/* ── Base ─────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
 
 html, body, #root {
   height: 100%;
@@ -27,31 +61,30 @@ html, body, #root {
 }
 
 body {
-  font-family: 'DM Sans', system-ui, sans-serif;
-  background: var(--parchment);
-  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background: rgb(var(--parchment));
+  color: rgb(var(--ink));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-#root {
-  display: flex;
-  flex-direction: column;
-}
+#root { display: flex; flex-direction: column; }
 
-/* Scrollbars */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--parchment-dark); }
-::-webkit-scrollbar-thumb { background: var(--ink-faint); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--ink-muted); }
+/* ── Scrollbars ───────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgb(var(--ink-faint) / 0.5); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--ink-muted) / 0.6); }
 
-/* Leaflet overrides */
+/* ── Leaflet overrides ────────────────────────────────────────────── */
 .leaflet-container {
-  background: #d4c9b8 !important;
-  font-family: 'DM Sans', sans-serif !important;
+  background: #1a2035 !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
 }
+.dark .leaflet-tile { filter: brightness(0.75) saturate(0.8); }
 
-/* Recharts overrides */
+/* ── Recharts ─────────────────────────────────────────────────────── */
 .recharts-tooltip-wrapper {
-  font-family: 'DM Sans', sans-serif !important;
+  font-family: 'Space Mono', monospace !important;
 }
