@@ -38,34 +38,41 @@ export default function LivePage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <StatusBar />
+      <StatusBar statusMessages={telem.status_messages} />
 
       <div className="flex-1 flex overflow-hidden">
 
-        {/* Left — camera + metrics + log */}
-        <div className="w-72 shrink-0 flex flex-col gap-3 p-3 overflow-hidden border-r border-parchment-darker">
-          <div className="pt-1">
+        {/* Left — camera + metrics + log — strictly no overflow */}
+        <div className="w-72 shrink-0 flex flex-col gap-2 p-3 overflow-hidden border-r border-parchment-darker">
+
+          <div className="shrink-0 pb-1">
             <h1 className="font-display text-xl font-bold text-ink tracking-tight">Live Survey</h1>
             <p className="text-[10px] font-mono text-ink-muted uppercase tracking-widest mt-0.5">
               EfficientCrackNet · Real-time
             </p>
           </div>
 
-          <CameraFeed crackRatioPct={latest?.crack_ratio_pct ?? 0} />
+          {/* Camera fixed height — never aspect-ratio grows the column */}
+          <div className="shrink-0">
+            <CameraFeed crackRatioPct={latest?.crack_ratio_pct ?? 0} />
+          </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="shrink-0 grid grid-cols-2 gap-2">
             <MetricCard label="Coverage" value={latest?.crack_ratio_pct.toFixed(1) ?? "—"} unit="%" accent={(latest?.crack_ratio_pct ?? 0) > 10} />
             <MetricCard label="FPS"      value={latest?.fps.toFixed(1) ?? "—"} unit="fps" />
           </div>
 
-          <div className="rounded-md border border-parchment-darker bg-surface/70 p-2">
+          <div className="shrink-0 rounded-md border border-parchment-darker bg-surface/70 p-2">
             <div className="text-[9px] font-mono text-ink-faint uppercase tracking-widest mb-1">Coverage · last 300 frames</div>
             <CrackRatioChart history={history} />
           </div>
 
-          <MissionControl activeMissionId={activeMissionId} loading={loading} onStart={start} onStop={stop} />
+          <div className="shrink-0">
+            <MissionControl activeMissionId={activeMissionId} loading={loading} onStart={start} onStop={stop} />
+          </div>
 
-          <div className="min-h-0 flex-1">
+          {/* CrackLog fills remaining space and scrolls internally */}
+          <div className="flex-1 min-h-0">
             <CrackLog history={history} telem={telem} />
           </div>
         </div>
@@ -77,7 +84,7 @@ export default function LivePage() {
 
         {/* Right — telemetry + flight */}
         <div className="w-64 shrink-0 flex flex-col gap-3 p-3 overflow-y-auto border-l border-parchment-darker">
-          <div className="pt-1">
+          <div className="shrink-0 pt-1">
             <h2 className="font-display text-base font-bold text-ink tracking-tight">Telemetry</h2>
           </div>
 

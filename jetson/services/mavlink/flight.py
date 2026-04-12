@@ -100,6 +100,38 @@ class FlightController:
         ok = self.conn.send_command_long(mavutil.mavlink.MAV_CMD_NAV_RETURN_TO_LAUNCH)
         return {"ok": ok, "message": "RTL" if ok else "RTL failed"}
 
+    def test_flight(self) -> dict:
+        """Safe hover test (no GPS required): GUIDED → ARM → Takeoff 2m → Hover 5s → Land.
+        Runs synchronously — call via asyncio.to_thread from FastAPI.
+        """
+        ok, msg = self._check()
+        if not ok:
+            return {"ok": False, "message": msg}
+
+        step = self.set_guided_mode()
+        if not step["ok"]:
+            return {"ok": False, "message": f"GUIDED failed: {step['message']}"}
+        time.sleep(1.5)
+
+        step = self.arm()
+        if not step["ok"]:
+            return {"ok": False, "message": f"Arm failed: {step['message']}"}
+        time.sleep(2.0)
+
+        step = self.takeoff(2.0)
+        if not step["ok"]:
+            self.disarm()
+            return {"ok": False, "message": f"Takeoff failed: {step['message']}"}
+
+        # Wait for drone to reach altitude (up to 12s)
+        time.sleep(12.0)
+
+        # Hover
+        time.sleep(5.0)
+
+        self.land()
+        return {"ok": True, "message": "Test flight complete: climbed 2m, hovered 5s, landing"}
+
     def upload_mission(self, waypoints: list[dict], takeoff_alt: float = 4.0) -> dict:
         """Upload a list of {lat, lon, alt} waypoints as an AUTO mission.
         Automatically prepends a takeoff waypoint and appends RTL.

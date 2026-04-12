@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { WS } from "../api/config";
 
+export interface StatusMessage {
+  text: string;
+  severity: string;       // "ERROR" | "WARNING" | "NOTICE" | "INFO" etc.
+  severity_level: number; // 0=emergency … 7=debug
+  ts: number;             // unix timestamp
+}
+
 export interface Telemetry {
   connected: boolean;
   lat: number;
@@ -18,6 +25,7 @@ export interface Telemetry {
   north_m: number;
   east_m: number;
   satellites: number;
+  status_messages: StatusMessage[];
 }
 
 const DEFAULT: Telemetry = {
@@ -25,6 +33,7 @@ const DEFAULT: Telemetry = {
   roll_deg: 0, pitch_deg: 0, yaw_deg: 0, heading_deg: 0,
   battery_pct: 0, battery_v: 0, mode: "—", armed: false,
   gps_fix: 0, north_m: 0, east_m: 0, satellites: 0,
+  status_messages: [],
 };
 
 export function useTelemetry() {

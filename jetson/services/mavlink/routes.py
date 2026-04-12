@@ -6,10 +6,15 @@ routes.py — FastAPI routes for MAVLink service.
 """
 
 import asyncio
-from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
+
+try:
+    from pymavlink import mavutil as _mavutil
+    _MAV_MODE_FLAG_CUSTOM_MODE_ENABLED = _mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED
+except Exception:
+    _MAV_MODE_FLAG_CUSTOM_MODE_ENABLED = 1
 
 router = APIRouter()
 
@@ -113,9 +118,18 @@ async def cmd_start_mission():
     """Set AUTO mode to execute the uploaded mission."""
     if not flight:
         return {"ok": False, "message": "Service not ready"}
+    from pymavlink import mavutil as mu
     ok = flight.conn.send_command_long(
-        __import__("pymavlink").mavutil.mavlink.MAV_CMD_DO_SET_MODE,
-        param1=__import__("pymavlink").mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+        mu.mavlink.MAV_CMD_DO_SET_MODE,
+        param1=mu.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
         param2=3,  # AUTO mode
     )
-    return {"ok": ok, "message": "AUTO mode" if ok else "Failed"}
+    return {"ok": ok, "message": "AUTO mode engaged" if ok else "Failed to set AUTO mode"}
+
+
+@router.post("/command/test-flight")
+async def cmd_test_flight():
+    """Hover test: GUIDED → ARM → Takeoff 2m → Hover 5s → Land. Runs ~20s."""
+    if not flight:
+        return {"ok": False, "message": "Service not ready"}
+    return await asyncio.to_thread(flight.test_flight)

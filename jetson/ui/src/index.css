@@ -32,23 +32,23 @@
 
 /* ── Dark mode ────────────────────────────────────────────────────── */
 .dark {
-  --parchment:        10 14 26;      /* #0A0E1A */
-  --parchment-dark:   17 24 39;      /* #111827 */
-  --parchment-darker: 30 41 59;      /* #1E293B */
+  --parchment:        13 17 28;      /* #0D111C — deep navy page bg */
+  --parchment-dark:   20 27 42;      /* #141B2A — slightly lighter panel bg */
+  --parchment-darker: 35 47 68;      /* #232F44 — subtle border, not harsh */
 
-  --accent:           6 182 212;     /* #06B6D4 cyan-500 — pops on dark */
+  --accent:           6 182 212;     /* #06B6D4 cyan-500 */
   --accent-light:     34 211 238;    /* #22D3EE */
   --accent-dark:      8 145 178;     /* #0891B2 */
 
-  --ink:              226 232 240;   /* #E2E8F0 slate-200 */
-  --ink-soft:         186 200 216;   /* #BAC8D8 */
-  --ink-muted:        127 147 171;   /* #7F93AB */
-  --ink-faint:        60 80 104;     /* #3C5068 */
+  --ink:              220 228 240;   /* #DCE4F0 slightly warmer than pure white */
+  --ink-soft:         167 184 204;   /* #A7B8CC */
+  --ink-muted:        100 120 148;   /* #647894 */
+  --ink-faint:        52 68 92;      /* #34445C — just visible, not stark */
 
   --positive:         52 211 153;    /* #34D399 emerald-400 */
   --info:             56 189 248;    /* #38BDF8 sky-400 */
 
-  --surface:          22 30 46;      /* #161E2E dark card */
+  --surface:          20 27 42;      /* #141B2A — card bg matches parchment-dark */
 }
 
 /* ── Base ─────────────────────────────────────────────────────────── */

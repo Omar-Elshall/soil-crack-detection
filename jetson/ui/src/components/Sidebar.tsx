@@ -12,16 +12,14 @@ export function Sidebar() {
   const { dark, toggle } = useTheme();
 
   return (
-    <aside className="w-14 flex flex-col items-center py-4 gap-1 shrink-0"
-      style={{ background: "#0D1117", borderRight: "1px solid #21262D" }}>
-
+    <aside
+      className="w-14 flex flex-col items-center py-4 gap-1 shrink-0 border-r border-parchment-darker bg-parchment-dark"
+    >
       {/* Logo mark */}
-      <div className="w-8 h-8 rounded border flex items-center justify-center mb-4"
-        style={{ borderColor: "rgb(var(--accent) / 0.4)" }}>
-        <span className="font-display font-bold text-sm leading-none"
-          style={{ color: "rgb(var(--accent))" }}>
-          S
-        </span>
+      <div
+        className="w-8 h-8 rounded-md flex items-center justify-center mb-4 bg-terracotta/15 border border-terracotta/30"
+      >
+        <span className="font-display font-bold text-sm leading-none text-terracotta">S</span>
       </div>
 
       {/* Nav links */}
@@ -32,10 +30,10 @@ export function Sidebar() {
           end
           title={label}
           className={({ isActive }) =>
-            `w-10 h-10 rounded flex items-center justify-center transition-colors ${
+            `w-10 h-10 rounded-md flex items-center justify-center transition-colors ${
               isActive
-                ? "bg-white/10 text-white"
-                : "text-white/30 hover:text-white/70 hover:bg-white/5"
+                ? "bg-terracotta/15 text-terracotta"
+                : "text-ink-muted hover:text-ink hover:bg-parchment-darker/60"
             }`
           }
         >
@@ -43,14 +41,13 @@ export function Sidebar() {
         </NavLink>
       ))}
 
-      {/* Spacer */}
       <div className="flex-1" />
 
       {/* Theme toggle */}
       <button
         onClick={toggle}
         title={dark ? "Switch to light" : "Switch to dark"}
-        className="w-10 h-10 rounded flex items-center justify-center text-white/30 hover:text-white/70 hover:bg-white/5 transition-colors"
+        className="w-10 h-10 rounded-md flex items-center justify-center text-ink-muted hover:text-ink hover:bg-parchment-darker/60 transition-colors"
       >
         {dark ? <Sun size={16} /> : <Moon size={16} />}
       </button>

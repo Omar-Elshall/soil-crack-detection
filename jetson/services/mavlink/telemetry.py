@@ -43,6 +43,11 @@ class TelemetrySnapshot:
         return asdict(self)
 
 
+# Severity levels from MAVLink STATUSTEXT
+_SEVERITY = {0: "EMERGENCY", 1: "ALERT", 2: "CRITICAL", 3: "ERROR",
+             4: "WARNING", 5: "NOTICE", 6: "INFO", 7: "DEBUG"}
+
+
 class TelemetryPoller:
     def __init__(self, connection):
         self.conn = connection
@@ -51,6 +56,7 @@ class TelemetryPoller:
         self._ws_clients: Set[WebSocket] = set()
         self._running = False
         self._thread = None
+        self.status_messages: list[dict] = []  # last 30 ArduPilot messages
 
     def start(self):
         self._running = True
@@ -98,11 +104,22 @@ class TelemetryPoller:
                     self.snapshot.connected = True
                 elif mt == "GPS_RAW_INT":
                     self.snapshot.gps_fix = msg.fix_type
+                elif mt == "STATUSTEXT":
+                    text = msg.text.strip('\x00').strip()
+                    if text:
+                        self.status_messages.append({
+                            "text": text,
+                            "severity": _SEVERITY.get(msg.severity, "INFO"),
+                            "severity_level": msg.severity,
+                            "ts": time.time(),
+                        })
+                        self.status_messages = self.status_messages[-30:]
 
     def get(self) -> dict:
         with self._lock:
             d = self.snapshot.to_dict()
             d["connected"] = self.conn.connected
+            d["status_messages"] = list(self.status_messages)
             return d
 
     def add_ws_client(self, ws: WebSocket):
