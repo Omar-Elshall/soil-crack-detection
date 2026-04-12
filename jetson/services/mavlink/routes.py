@@ -110,7 +110,15 @@ async def cmd_upload_mission(body: MissionBody):
     if not flight:
         return {"ok": False, "message": "Service not ready"}
     wps = [{"lat": w.lat, "lon": w.lon, "alt": w.alt} for w in body.waypoints]
-    return flight.upload_mission(wps, body.takeoff_alt)
+    # Pause telemetry poller so it doesn't consume MISSION_ACK / MISSION_REQUEST messages
+    if poller:
+        poller.pause()
+    try:
+        result = await asyncio.to_thread(flight.upload_mission, wps, body.takeoff_alt)
+    finally:
+        if poller:
+            poller.resume()
+    return result
 
 
 @router.post("/command/start-mission")
@@ -129,7 +137,14 @@ async def cmd_start_mission():
 
 @router.post("/command/test-flight")
 async def cmd_test_flight():
-    """Hover test: GUIDED → ARM → Takeoff 2m → Hover 5s → Land. Runs ~20s."""
+    """Motor test: STABILIZE → force-arm → 5 s → disarm. No GPS required."""
     if not flight:
         return {"ok": False, "message": "Service not ready"}
-    return await asyncio.to_thread(flight.test_flight)
+    if poller:
+        poller.pause()
+    try:
+        result = await asyncio.to_thread(flight.test_flight)
+    finally:
+        if poller:
+            poller.resume()
+    return result

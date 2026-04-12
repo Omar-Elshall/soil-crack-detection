@@ -60,8 +60,16 @@ class TelemetryPoller:
 
     def start(self):
         self._running = True
+        self._paused = False
         self._thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._thread.start()
+
+    def pause(self):
+        """Pause message consumption so blocking MAVLink exchanges (upload, etc.) can read ACKs."""
+        self._paused = True
+
+    def resume(self):
+        self._paused = False
 
     def _poll_loop(self):
         """Continuously reads MAVLink messages and updates snapshot."""
@@ -71,8 +79,8 @@ class TelemetryPoller:
             5: "LOITER", 6: "RTL", 9: "LAND", 16: "POSHOLD",
         }
         while self._running:
-            if not self.conn.connected:
-                time.sleep(0.1)
+            if self._paused or not self.conn.connected:
+                time.sleep(0.05)
                 continue
             msg = self.conn.recv(blocking=False, timeout=0.05)
             if msg is None:
