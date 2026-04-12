@@ -1,10 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 
-// Allow opacity modifiers (bg-accent/20) with CSS variables
-const cv = (name) => ({ opacityValue }) =>
-  opacityValue !== undefined
-    ? `rgba(var(--${name}), ${opacityValue})`
-    : `rgb(var(--${name}))`;
+// CSS variable color helper — uses CSS Color Level 4 slash syntax so
+// opacity modifiers (bg-accent/20) and bare classes both produce valid CSS.
+// rgba(R G B, A) is invalid; rgb(R G B / A) is the correct form.
+const cv = (name) => `rgb(var(--${name}) / <alpha-value>)`;
 
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],

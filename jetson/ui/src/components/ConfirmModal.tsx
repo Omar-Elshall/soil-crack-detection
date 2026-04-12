@@ -25,7 +25,7 @@ export function ConfirmModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" style={{ zIndex: 9999 }}>
       <div
         className="relative w-full max-w-md rounded-xl border bg-surface shadow-2xl overflow-hidden"
         style={{ borderColor: "rgb(var(--parchment-darker))" }}
