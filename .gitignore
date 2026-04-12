@@ -12,10 +12,16 @@ results/
 __pycache__/
 *.py[cod]
 *.egg-info/
-dist/
 build/
 venv/
 .venv/
+
+# Python dist (not the UI dist)
+/dist/
+
+# Keep the built UI so Jetson can git pull instead of SCP
+!jetson/ui/dist/
+!jetson/ui/dist/**
 
 # Jupyter
 .ipynb_checkpoints/

@@ -12,7 +12,7 @@ from torchvision import transforms
 
 from crack_detection.models.efficientcracknet import EfficientCrackNet
 
-DEFAULT_MODEL_PATH = "results/saved_models/EfficientCrackNet/best_model_num_real_5.pt"
+DEFAULT_MODEL_PATH = "jetson/models/best_model_num_real_5.pt"
 CRACK_THRESHOLD = 0.5
 
 TRANSFORM = transforms.Compose([
