@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Radio, BookOpen, Map, Sun, Moon } from "lucide-react";
+import { Radio, BookOpen, Map, Sun, Moon, Sprout } from "lucide-react";
 import { useTheme } from "../App";
 
 const links = [
@@ -15,12 +15,15 @@ export function Sidebar() {
     <aside
       className="w-14 flex flex-col items-center py-4 gap-1 shrink-0 border-r border-parchment-darker bg-parchment-dark"
     >
-      {/* Logo mark */}
-      <div
-        className="w-8 h-8 rounded-md flex items-center justify-center mb-4 bg-terracotta/15 border border-terracotta/30"
+      {/* Logo — links to live page */}
+      <NavLink
+        to="/"
+        end
+        title="Soil Crack Detection · Live"
+        className="w-8 h-8 rounded-md flex items-center justify-center mb-4 bg-terracotta/15 border border-terracotta/30 hover:bg-terracotta/25 transition-colors"
       >
-        <span className="font-display font-bold text-sm leading-none text-terracotta">S</span>
-      </div>
+        <Sprout size={15} className="text-terracotta" />
+      </NavLink>
 
       {/* Nav links */}
       {links.map(({ to, label, icon: Icon }) => (

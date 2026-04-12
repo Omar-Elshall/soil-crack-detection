@@ -6,10 +6,9 @@
 
 /* ── Light mode ───────────────────────────────────────────────────── */
 :root {
-  /* Page is light gray — white cards float above it naturally, no harsh borders needed */
-  --parchment:        237 240 245;   /* #EDF0F5  page bg (gray) */
-  --parchment-dark:   226 230 238;   /* #E2E6EE  sidebar (slightly darker gray) */
-  --parchment-darker: 208 214 224;   /* #D0D6E0  dividers — minimal */
+  --parchment:        237 240 245;   /* #EDF0F5  page bg */
+  --parchment-dark:   220 225 235;   /* #DCE1EB  sidebar/panels — visible step below page */
+  --parchment-darker: 196 204 216;   /* #C4CCD8  borders — subtle but present */
 
   --accent:           8 145 178;
   --accent-light:     14 165 233;
@@ -17,33 +16,32 @@
 
   --ink:              18 24 36;
   --ink-soft:         52 64 84;
-  --ink-muted:        98 112 132;
-  --ink-faint:        158 170 186;
+  --ink-muted:        106 120 140;   /* slightly softened for small labels */
+  --ink-faint:        148 162 178;   /* slightly softened for tiny annotations */
 
   --positive:         5 150 105;
   --info:             2 132 199;
-  --surface:          255 255 255;   /* white — visibly elevated above gray bg */
+  --surface:          248 250 252;   /* #F8FAFC  off-white cards — elevated but not glaring */
 }
 
 /* ── Dark mode ────────────────────────────────────────────────────── */
 .dark {
-  /* Page is darkest — cards are visibly lighter, no bright borders needed */
   --parchment:        10 13 20;      /* #0A0D14  darkest — page bg */
-  --parchment-dark:   15 19 30;      /* #0F131E  sidebar */
-  --parchment-darker: 24 30 46;      /* #181E2E  divider — barely visible */
+  --parchment-dark:   18 23 36;      /* #121724  sidebar/panels — visible step above page */
+  --parchment-darker: 30 38 58;      /* #1E263A  borders — subtle but visible */
 
   --accent:           6 182 212;
   --accent-light:     34 211 238;
   --accent-dark:      8 145 178;
 
-  --ink:              205 214 228;   /* #CDD6E4 */
-  --ink-soft:         136 152 174;   /* #8898AE */
-  --ink-muted:        76 94 120;     /* #4C5E78 */
-  --ink-faint:        40 52 74;      /* #28344A */
+  --ink:              198 208 224;   /* #C6D0E0  very slight soften from pure bright */
+  --ink-soft:         130 148 168;   /* #8294A8 */
+  --ink-muted:        82 100 126;    /* #52647E */
+  --ink-faint:        56 72 100;     /* #384864  readable tiny labels */
 
   --positive:         52 211 153;
   --info:             56 189 248;
-  --surface:          18 24 38;      /* #121826  cards — clearly lighter than page bg */
+  --surface:          22 30 50;      /* #161E32  cards — clearly above panels */
 }
 
 /* ── Base ─────────────────────────────────────────────────────────── */
