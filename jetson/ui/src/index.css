@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --parchment: #F9F6F1;
+  --parchment-dark: #EEE8DE;
+  --terracotta: #C4622D;
+  --terracotta-light: #D97A47;
+  --ink: #2C2C2C;
+  --ink-soft: #4A4A4A;
+  --ink-muted: #7A7A7A;
+  --ink-faint: #AAAAAA;
+  --moss: #4E6E4E;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background: var(--parchment);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--parchment-dark); }
+::-webkit-scrollbar-thumb { background: var(--ink-faint); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-muted); }
+
+/* Leaflet overrides */
+.leaflet-container {
+  background: #d4c9b8 !important;
+  font-family: 'DM Sans', sans-serif !important;
+}
+
+/* Recharts overrides */
+.recharts-tooltip-wrapper {
+  font-family: 'DM Sans', sans-serif !important;
+}
