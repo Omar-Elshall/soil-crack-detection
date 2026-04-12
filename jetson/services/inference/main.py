@@ -47,24 +47,24 @@ async def startup():
 
     dry_run = os.environ.get("DRY_RUN", "0") == "1"
 
-    _engine = InferenceEngine(
-        model_path=os.environ.get("MODEL_PATH"),
-        fp16=os.environ.get("FP16", "1") == "1",
-    )
-    _engine.load()
-
     if dry_run:
-        print("DRY_RUN mode — camera not started, using blank frames")
-        import numpy as np
+        print("DRY_RUN mode — skipping model load and camera, using blank frames")
         import time
+        import numpy as np
         def _dummy_loop():
             state.running = True
             while state.running:
-                blank = (255 * __import__('numpy').ones((512, 512, 3), dtype='uint8'))
-                state.update(blank, blank, blank[:,:,0]*0, 0.0, 0.0)
-                time.sleep(0.1)
+                blank = np.ones((512, 512, 3), dtype="uint8") * 40
+                state.update(blank, blank, (blank[:, :, 0] * 0), 0.0, 0.0)
+                time.sleep(0.2)
         threading.Thread(target=_dummy_loop, daemon=True).start()
     else:
+        _engine = InferenceEngine(
+            model_path=os.environ.get("MODEL_PATH"),
+            fp16=os.environ.get("FP16", "1") == "1",
+        )
+        _engine.load()
+
         sensor_mode = int(os.environ.get("SENSOR_MODE", "0"))
         _grabber = FrameGrabber(sensor_mode=sensor_mode)
         _grabber.start()

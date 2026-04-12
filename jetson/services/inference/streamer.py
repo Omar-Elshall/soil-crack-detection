@@ -7,8 +7,14 @@ import threading
 import time
 from dataclasses import dataclass, field
 
-import cv2
 import numpy as np
+
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+    cv2 = None
 
 
 @dataclass
@@ -44,6 +50,8 @@ state = InferenceState()
 
 def build_overlay(frame_bgr: np.ndarray, mask: np.ndarray, crack_ratio: float, fps: float) -> np.ndarray:
     """Overlay crack mask on frame with ratio + fps HUD."""
+    if not CV2_AVAILABLE:
+        return frame_bgr
     overlay = frame_bgr.copy()
     colored = np.zeros_like(frame_bgr)
     colored[mask > 127] = (46, 98, 196)   # terracotta in BGR: #C4622D → BGR (46, 98, 196)
@@ -67,8 +75,21 @@ def mjpeg_generator(jpeg_quality: int = 80):
         if frame is None:
             time.sleep(0.05)
             continue
-        ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality])
-        if not ok:
-            continue
-        yield boundary + buf.tobytes() + b"\r\n"
-        time.sleep(0.033)   # ~30 fps cap for stream clients
+        if CV2_AVAILABLE:
+            ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality])
+            if not ok:
+                continue
+            yield boundary + buf.tobytes() + b"\r\n"
+        else:
+            # Fallback: send a minimal placeholder JPEG (1x1 gray pixel)
+            import base64
+            placeholder = base64.b64decode(
+                "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8U"
+                "HRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgN"
+                "DRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy"
+                "MjL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAA"
+                "AAAAAAAAAAAAAP/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA"
+                "/9oADAMBAAIRAxEAPwCwABmX/9k="
+            )
+            yield boundary + placeholder + b"\r\n"
+        time.sleep(0.033)

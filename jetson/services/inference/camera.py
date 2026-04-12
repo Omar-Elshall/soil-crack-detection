@@ -6,7 +6,12 @@ Identical pipeline to live_inference.py (sensor_mode=0, TNR, EE, center crop →
 import threading
 import time
 
-import cv2
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+    cv2 = None
 
 SENSOR_MODE_DIMS = {
     0: (4032, 3040),
@@ -45,6 +50,8 @@ class FrameGrabber:
         self._thread = None
 
     def start(self):
+        if not CV2_AVAILABLE:
+            raise RuntimeError("cv2 not available — camera only works on Jetson")
         pipeline = build_pipeline(self.sensor_mode, self.wbmode)
         self._cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
         if not self._cap.isOpened():

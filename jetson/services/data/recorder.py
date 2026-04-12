@@ -73,10 +73,11 @@ class MissionRecorder:
                 return
             ctx = self._active[mission_id]
 
+        ctx["count"] += 1
+
         # Save mask PNG if provided
         mask_filename = ""
         if mask_png_b64:
-            ctx["count"] += 1
             mask_filename = f"frame_{ctx['count']:04d}_mask.png"
             mask_path = os.path.join(ctx["dir"], "masks", mask_filename)
             try:
@@ -91,8 +92,6 @@ class MissionRecorder:
             heading_deg, crack_ratio_pct, mask_filename
         ])
         ctx["csv_file"].flush()
-
-        ctx["count"] += 1
         ctx["max_ratio"] = max(ctx["max_ratio"], crack_ratio_pct)
         ctx["ratios"].append(crack_ratio_pct)
         if lat != 0.0: ctx["lats"].append(lat)
