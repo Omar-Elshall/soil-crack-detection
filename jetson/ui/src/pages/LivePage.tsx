@@ -43,7 +43,7 @@ export default function LivePage() {
       <div className="flex-1 flex overflow-hidden">
 
         {/* Left — camera + metrics + log — strictly no overflow */}
-        <div className="w-72 shrink-0 flex flex-col gap-2 p-3 overflow-hidden border-r border-parchment-darker">
+        <div className="w-72 shrink-0 flex flex-col gap-2 p-3 overflow-hidden bg-parchment-dark">
 
           <div className="shrink-0 pb-1">
             <h1 className="font-display text-xl font-bold text-ink tracking-tight">Live Survey</h1>
@@ -83,7 +83,7 @@ export default function LivePage() {
         </div>
 
         {/* Right — telemetry + flight */}
-        <div className="w-64 shrink-0 flex flex-col gap-3 p-3 overflow-y-auto border-l border-parchment-darker">
+        <div className="w-64 shrink-0 flex flex-col gap-3 p-3 overflow-y-auto bg-parchment-dark">
           <div className="shrink-0 pt-1">
             <h2 className="font-display text-base font-bold text-ink tracking-tight">Telemetry</h2>
           </div>

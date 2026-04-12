@@ -40,6 +40,27 @@ class MAVLinkConnection:
             self.master.wait_heartbeat(timeout=timeout)
             self.connected = True
             print(f"Pixhawk connected. sysid={self.master.target_system} compid={self.master.target_component}")
+
+            # Request all telemetry streams — ArduPilot won't send them by default
+            streams = [
+                mavutil.mavlink.MAV_DATA_STREAM_RAW_SENSORS,      # IMU
+                mavutil.mavlink.MAV_DATA_STREAM_EXTENDED_STATUS,   # SYS_STATUS, battery
+                mavutil.mavlink.MAV_DATA_STREAM_POSITION,          # GPS, local NED
+                mavutil.mavlink.MAV_DATA_STREAM_EXTRA1,            # ATTITUDE
+                mavutil.mavlink.MAV_DATA_STREAM_EXTRA2,            # VFR_HUD
+                mavutil.mavlink.MAV_DATA_STREAM_EXTRA3,            # AHRS etc.
+            ]
+            for stream_id in streams:
+                self.master.mav.request_data_stream_send(
+                    self.master.target_system,
+                    self.master.target_component,
+                    stream_id,
+                    10,  # 10 Hz
+                    1,   # start
+                )
+            time.sleep(0.1)
+            print("Telemetry streams requested at 10 Hz.")
+
             self._running = True
             self._heartbeat_thread = threading.Thread(target=self._send_heartbeat, daemon=True)
             self._heartbeat_thread.start()

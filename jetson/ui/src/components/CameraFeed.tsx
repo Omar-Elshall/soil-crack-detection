@@ -48,7 +48,7 @@ export function CameraFeed() {
     <>
       {/* Inline feed */}
       <div
-        className="relative rounded-md overflow-hidden border border-parchment-darker h-44 w-full shrink-0"
+        className="relative rounded-md overflow-hidden border border-parchment-darker w-full shrink-0 aspect-square"
         style={{ background: "#000" }}
       >
         {feedImg}
@@ -72,8 +72,8 @@ export function CameraFeed() {
             className="relative rounded-xl overflow-hidden border border-white/10"
             style={{
               background: "#000",
-              width: "min(85vw, calc(85vh * 4 / 3))",
-              aspectRatio: "4/3",
+              width: "min(85vh, 85vw)",
+              aspectRatio: "1/1",
             }}
             onClick={e => e.stopPropagation()}
           >

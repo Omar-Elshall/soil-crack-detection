@@ -5,6 +5,11 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Soil Crack Detection</title>
+    <!-- Apply dark mode before first paint to prevent flash and ensure correct default -->
+    <script>
+      const t = localStorage.getItem('theme');
+      if (!t || t === 'dark') document.documentElement.classList.add('dark');
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -5,8 +5,13 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Soil Crack Detection</title>
-    <script type="module" crossorigin src="/assets/index-4K9gnKFT.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-uy8PvnbZ.css">
+    <!-- Apply dark mode before first paint to prevent flash and ensure correct default -->
+    <script>
+      const t = localStorage.getItem('theme');
+      if (!t || t === 'dark') document.documentElement.classList.add('dark');
+    </script>
+    <script type="module" crossorigin src="/assets/index-CTO61HrM.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-C2LJGxPt.css">
   </head>
   <body>
     <div id="root"></div>
