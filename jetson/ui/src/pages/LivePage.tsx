@@ -54,7 +54,7 @@ export default function LivePage() {
 
           {/* Camera fixed height — never aspect-ratio grows the column */}
           <div className="shrink-0">
-            <CameraFeed crackRatioPct={latest?.crack_ratio_pct ?? 0} />
+            <CameraFeed />
           </div>
 
           <div className="shrink-0 grid grid-cols-2 gap-2">

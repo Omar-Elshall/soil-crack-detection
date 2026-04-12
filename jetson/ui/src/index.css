@@ -6,44 +6,44 @@
 
 /* ── Light mode ───────────────────────────────────────────────────── */
 :root {
-  /* White page, gray sidebar — depth through tone, not borders */
-  --parchment:        255 255 255;   /* #FFFFFF  main content bg */
-  --parchment-dark:   242 244 247;   /* #F2F4F7  sidebar / secondary panels */
-  --parchment-darker: 220 224 232;   /* #DCE0E8  dividers — soft, not loud */
+  /* Page is light gray — white cards float above it naturally, no harsh borders needed */
+  --parchment:        237 240 245;   /* #EDF0F5  page bg (gray) */
+  --parchment-dark:   226 230 238;   /* #E2E6EE  sidebar (slightly darker gray) */
+  --parchment-darker: 208 214 224;   /* #D0D6E0  dividers — minimal */
 
-  --accent:           8 145 178;     /* #0891B2 */
+  --accent:           8 145 178;
   --accent-light:     14 165 233;
   --accent-dark:      7 105 130;
 
-  --ink:              18 24 36;      /* #121824 */
-  --ink-soft:         52 64 84;      /* #344054 */
-  --ink-muted:        98 112 132;    /* #627084 */
-  --ink-faint:        158 170 186;   /* #9EAABA */
+  --ink:              18 24 36;
+  --ink-soft:         52 64 84;
+  --ink-muted:        98 112 132;
+  --ink-faint:        158 170 186;
 
   --positive:         5 150 105;
   --info:             2 132 199;
-  --surface:          255 255 255;
+  --surface:          255 255 255;   /* white — visibly elevated above gray bg */
 }
 
 /* ── Dark mode ────────────────────────────────────────────────────── */
 .dark {
-  /* Deep base + subtle warm-cool gradient hint — layers via tone not lines */
-  --parchment:        12 15 23;      /* #0C0F17  page base */
-  --parchment-dark:   17 22 34;      /* #111622  sidebar / raised panels */
-  --parchment-darker: 28 36 54;      /* #1C2436  dividers — dark, barely there */
+  /* Page is darkest — cards are visibly lighter, no bright borders needed */
+  --parchment:        10 13 20;      /* #0A0D14  darkest — page bg */
+  --parchment-dark:   15 19 30;      /* #0F131E  sidebar */
+  --parchment-darker: 24 30 46;      /* #181E2E  divider — barely visible */
 
   --accent:           6 182 212;
   --accent-light:     34 211 238;
   --accent-dark:      8 145 178;
 
-  --ink:              208 216 232;   /* #D0D8E8  warm off-white */
-  --ink-soft:         140 156 178;   /* #8C9CB2 */
-  --ink-muted:        80 98 124;     /* #50627C */
-  --ink-faint:        42 56 80;      /* #2A3850 */
+  --ink:              205 214 228;   /* #CDD6E4 */
+  --ink-soft:         136 152 174;   /* #8898AE */
+  --ink-muted:        76 94 120;     /* #4C5E78 */
+  --ink-faint:        40 52 74;      /* #28344A */
 
   --positive:         52 211 153;
   --info:             56 189 248;
-  --surface:          17 22 34;      /* #111622  same as parchment-dark */
+  --surface:          18 24 38;      /* #121826  cards — clearly lighter than page bg */
 }
 
 /* ── Base ─────────────────────────────────────────────────────────── */
@@ -66,7 +66,7 @@ body {
 }
 
 .dark body {
-  background: linear-gradient(160deg, #0C0F17 0%, #0D1220 60%, #0C1018 100%);
+  background: linear-gradient(160deg, #0A0D14 0%, #0B1018 50%, #0A0E1C 100%);
 }
 
 #root { display: flex; flex-direction: column; }

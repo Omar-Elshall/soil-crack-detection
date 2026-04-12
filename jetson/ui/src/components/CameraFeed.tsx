@@ -2,9 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { API } from "../api/config";
 import { Maximize2, Minimize2, X } from "lucide-react";
 
-interface Props { crackRatioPct?: number }
-
-export function CameraFeed({ crackRatioPct = 0 }: Props) {
+export function CameraFeed() {
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -26,29 +24,6 @@ export function CameraFeed({ crackRatioPct = 0 }: Props) {
     return () => window.removeEventListener("keydown", handler);
   }, [expanded]);
 
-  const ringColor =
-    crackRatioPct > 20 ? "rgb(var(--accent))" :
-    crackRatioPct > 5  ? "#F59E0B" :
-    "rgb(var(--positive))";
-
-  const badges = (
-    <>
-      <div className="absolute top-2 left-2 pointer-events-none">
-        <div
-          className="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-mono font-bold text-white transition-all duration-700"
-          style={{ background: "rgba(0,0,0,0.55)", boxShadow: `0 0 0 1.5px ${ringColor}` }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full transition-colors duration-700" style={{ background: ringColor }} />
-          {crackRatioPct.toFixed(1)}%
-        </div>
-      </div>
-      <div className="absolute top-2 right-10 pointer-events-none">
-        <span className="text-[9px] font-mono text-white/35 bg-black/20 px-1.5 py-0.5 rounded tracking-widest uppercase">
-          ECN
-        </span>
-      </div>
-    </>
-  );
 
   const feedImg = (
     error ? (
@@ -77,7 +52,6 @@ export function CameraFeed({ crackRatioPct = 0 }: Props) {
         style={{ background: "#000" }}
       >
         {feedImg}
-        {badges}
         <button
           onClick={() => setExpanded(true)}
           className="absolute bottom-2 right-2 p-1.5 rounded text-white/50 hover:text-white transition-colors"
@@ -104,7 +78,6 @@ export function CameraFeed({ crackRatioPct = 0 }: Props) {
             onClick={e => e.stopPropagation()}
           >
             {feedImg}
-            {badges}
             <button
               onClick={() => setExpanded(false)}
               className="absolute top-3 right-3 p-2 rounded-lg text-white/60 hover:text-white transition-colors"
