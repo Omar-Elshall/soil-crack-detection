@@ -6,49 +6,49 @@
 
 /* ── Light mode (default) ─────────────────────────────────────────── */
 :root {
-  /* Backgrounds */
-  --parchment:        237 242 248;   /* #EDF2F8 cool slate-blue-gray */
-  --parchment-dark:   218 228 238;   /* #DAE4EE */
-  --parchment-darker: 195 210 224;   /* #C3D2E0 */
+  /* Page backgrounds — near-white, barely tinted */
+  --parchment:        246 247 249;   /* #F6F7F9 */
+  --parchment-dark:   240 241 244;   /* #F0F1F4 sidebar / panel bg */
+  --parchment-darker: 224 226 232;   /* #E0E2E8 border — visible but not loud */
 
-  /* Accent — cyan, not orange */
+  /* Accent */
   --accent:           8 145 178;     /* #0891B2 cyan-600 */
-  --accent-light:     14 165 233;    /* #0EA5E9 sky-500 */
+  --accent-light:     14 165 233;    /* #0EA5E9 */
   --accent-dark:      7 105 130;     /* #076982 */
 
   /* Text */
-  --ink:              15 23 42;      /* #0F172A slate-900 */
-  --ink-soft:         51 65 85;      /* #334155 slate-700 */
-  --ink-muted:        100 116 139;   /* #64748B slate-500 */
-  --ink-faint:        148 163 184;   /* #94A3B8 slate-400 */
+  --ink:              22 28 38;      /* #161C26 near-black */
+  --ink-soft:         55 68 88;      /* #374458 */
+  --ink-muted:        102 114 132;   /* #667284 */
+  --ink-faint:        162 172 188;   /* #A2ACBC */
 
   /* Status */
-  --positive:         5 150 105;     /* #059669 emerald-600 */
-  --info:             2 132 199;     /* #0284C7 sky-600 */
+  --positive:         5 150 105;     /* #059669 */
+  --info:             2 132 199;     /* #0284C7 */
 
-  /* Card surface */
-  --surface:          255 255 255;   /* white */
+  --surface:          255 255 255;
 }
 
 /* ── Dark mode ────────────────────────────────────────────────────── */
 .dark {
-  --parchment:        13 17 28;      /* #0D111C — deep navy page bg */
-  --parchment-dark:   20 27 42;      /* #141B2A — slightly lighter panel bg */
-  --parchment-darker: 35 47 68;      /* #232F44 — subtle border, not harsh */
+  /* Page bg is deep, sections differ by ~8-10 lightness units — tone, not lines */
+  --parchment:        14 18 27;      /* #0E121B base */
+  --parchment-dark:   19 24 35;      /* #131823 sidebar / raised surface */
+  --parchment-darker: 32 40 56;      /* #202838 border — subtle, not white */
 
   --accent:           6 182 212;     /* #06B6D4 cyan-500 */
   --accent-light:     34 211 238;    /* #22D3EE */
   --accent-dark:      8 145 178;     /* #0891B2 */
 
-  --ink:              220 228 240;   /* #DCE4F0 slightly warmer than pure white */
-  --ink-soft:         167 184 204;   /* #A7B8CC */
-  --ink-muted:        100 120 148;   /* #647894 */
-  --ink-faint:        52 68 92;      /* #34445C — just visible, not stark */
+  --ink:              210 218 232;   /* #D2DAE8 — warm off-white, not pure */
+  --ink-soft:         148 162 182;   /* #94A2B6 */
+  --ink-muted:        88 104 128;    /* #586880 */
+  --ink-faint:        48 60 80;      /* #303C50 — barely there */
 
-  --positive:         52 211 153;    /* #34D399 emerald-400 */
-  --info:             56 189 248;    /* #38BDF8 sky-400 */
+  --positive:         52 211 153;    /* #34D399 */
+  --info:             56 189 248;    /* #38BDF8 */
 
-  --surface:          20 27 42;      /* #141B2A — card bg matches parchment-dark */
+  --surface:          19 24 35;      /* #131823 — same as parchment-dark */
 }
 
 /* ── Base ─────────────────────────────────────────────────────────── */

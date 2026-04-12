@@ -11,7 +11,7 @@ export function CrackLog({ history, telem }: Props) {
   const entries = history.slice(-50).reverse();
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-md border border-parchment-darker bg-surface/70">
+    <div className="h-full flex flex-col overflow-hidden rounded-md border border-parchment-darker bg-surface/70">
       <div className="px-3 py-2 border-b border-parchment-darker flex items-center justify-between">
         <span className="text-[9px] font-mono uppercase tracking-widest text-ink-faint">Detections</span>
         <span className="text-[9px] font-mono text-ink-faint">{history.length} frames</span>

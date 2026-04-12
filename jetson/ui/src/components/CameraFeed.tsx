@@ -90,7 +90,8 @@ export function CameraFeed({ crackRatioPct = 0 }: Props) {
       {/* Fullscreen overlay — fixed, no portal needed, always on top */}
       {expanded && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-8"
+          className="fixed inset-0 flex items-center justify-center bg-black/80 p-8"
+          style={{ zIndex: 9999 }}
           onClick={() => setExpanded(false)}
         >
           <div
