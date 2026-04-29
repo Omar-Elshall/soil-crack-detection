@@ -58,44 +58,7 @@ def eval(args, test_dataloaders):
         output_mask[output_mask >= args.threshold] = 1.
         output_mask[output_mask < args.threshold] = 0.
 
-        # Save prediction mask and side-by-side comparison for each image
-        for b in range(output_mask.shape[0]):
-            img_name = os.path.splitext(os.path.basename(image_paths[img_idx]))[0]
-
-            orig = input_img[b].cpu().permute(1, 2, 0).numpy()
-            orig = np.clip(orig, 0, 1)
-            gt = mask[b, 0].cpu().numpy()
-            pred = output_mask[b, 0].cpu().numpy()
-
-            # Save raw binary prediction mask
-            pred_png = PILImage.fromarray((pred * 255).astype(np.uint8))
-            pred_png.save(os.path.join(output_dir, f'{img_name}_pred_mask.png'))
-
-            # Build overlay: predicted cracks in red on top of input image
-            overlay = orig.copy()
-            overlay[pred == 1] = [1.0, 0.0, 0.0]
-
-            # Save side-by-side comparison: input | ground truth | prediction | overlay
-            fig, axes = plt.subplots(1, 4, figsize=(20, 5))
-            axes[0].imshow(orig)
-            axes[0].set_title('Input Image', fontsize=13)
-            axes[0].axis('off')
-            axes[1].imshow(gt, cmap='gray')
-            axes[1].set_title('Ground Truth', fontsize=13)
-            axes[1].axis('off')
-            axes[2].imshow(pred, cmap='gray', vmin=0, vmax=1)
-            axes[2].set_title('Prediction', fontsize=13)
-            axes[2].axis('off')
-            axes[3].imshow(overlay)
-            axes[3].set_title('Overlay (red=crack)', fontsize=13)
-            axes[3].axis('off')
-            plt.suptitle(img_name, fontsize=11, y=1.01)
-            plt.tight_layout()
-            plt.savefig(os.path.join(output_dir, f'{img_name}_comparison.png'), dpi=150, bbox_inches='tight')
-            plt.close()
-
-            img_idx += 1
-
+        # Compute per-image metrics first so they can appear on the figure
         y_true = mask.cpu().numpy().flatten().astype(int)
         y_pred = output_mask.cpu().numpy().flatten().astype(int)
         f1_s = f1_score(y_true, y_pred)
@@ -117,7 +80,48 @@ def eval(args, test_dataloaders):
         precision_scores += precision
         num_batch += 1.0
 
-        # Per-image metrics
+        # Save prediction mask and side-by-side comparison for each image
+        for b in range(output_mask.shape[0]):
+            img_name = os.path.splitext(os.path.basename(image_paths[img_idx]))[0]
+
+            orig = input_img[b].cpu().permute(1, 2, 0).numpy()
+            orig = np.clip(orig, 0, 1)
+            gt = mask[b, 0].cpu().numpy()
+            pred = output_mask[b, 0].cpu().numpy()
+
+            # Save raw binary prediction mask
+            pred_png = PILImage.fromarray((pred * 255).astype(np.uint8))
+            pred_png.save(os.path.join(output_dir, f'{img_name}_pred_mask.png'))
+
+            # Build overlay: predicted cracks in red on top of input image
+            overlay = orig.copy()
+            overlay[pred == 1] = [1.0, 0.0, 0.0]
+
+            # Save side-by-side comparison with scores in title
+            fig, axes = plt.subplots(1, 4, figsize=(20, 5))
+            axes[0].imshow(orig)
+            axes[0].set_title('Input Image', fontsize=13)
+            axes[0].axis('off')
+            axes[1].imshow(gt, cmap='gray')
+            axes[1].set_title('Ground Truth', fontsize=13)
+            axes[1].axis('off')
+            axes[2].imshow(pred, cmap='gray', vmin=0, vmax=1)
+            axes[2].set_title('Prediction', fontsize=13)
+            axes[2].axis('off')
+            axes[3].imshow(overlay)
+            axes[3].set_title('Overlay (red=crack)', fontsize=13)
+            axes[3].axis('off')
+            plt.suptitle(img_name, fontsize=11, y=1.01)
+            fig.text(0.5, -0.02,
+                     f'F1={f1_s:.4f}    Precision={precision:.4f}    Recall={recall:.4f}    mIoU={batch_miou:.4f}',
+                     ha='center', fontsize=12)
+            plt.tight_layout()
+            plt.savefig(os.path.join(output_dir, f'{img_name}_comparison.png'), dpi=150, bbox_inches='tight')
+            plt.close()
+
+            img_idx += 1
+
+        # Per-image metrics log
         img_name_for_metric = os.path.splitext(os.path.basename(image_paths[img_idx - 1]))[0]
         print(f"  [{img_name_for_metric}] F1={f1_s:.4f}  Precision={precision:.4f}  Recall={recall:.4f}  mIoU={batch_miou:.4f}")
         per_image_results.append({

@@ -320,7 +320,7 @@ def parse_args():
     p = argparse.ArgumentParser(description="Live crack detection on Jetson")
     p.add_argument("--engine",      default=None,
                    help="Path to TensorRT .trt engine (omit to use PyTorch)")
-    p.add_argument("--model_path",  default="results/saved_models/EfficientCrackNet/best_model_num_real_4.pt")
+    p.add_argument("--model_path",  default="results/saved_models/EfficientCrackNet/best_model_num_real_6.pt")
     p.add_argument("--sensor_mode", type=int, default=0, choices=[0, 1, 2],
                    help="0=4032x3040@21fps (default)  1=3840x2160@30fps  2=1920x1080@60fps")
     p.add_argument("--wbmode",      type=int, default=1,

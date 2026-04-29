@@ -58,7 +58,7 @@ def export(args):
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument("--model_path", default="results/saved_models/EfficientCrackNet/best_model_num_real_4.pt")
+    p.add_argument("--model_path", default="results/saved_models/EfficientCrackNet/best_model_num_real_6.pt")
     p.add_argument("--output", default="results/efficientcracknet.onnx")
     return p.parse_args()
 
