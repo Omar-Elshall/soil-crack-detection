@@ -151,22 +151,52 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
 done
 echo
 
-# ── 6. Verify Jetson is now reachable on the new WiFi ────────────────────────
-echo "==> $(c_g 'Step 6') verifying Jetson reachable on '$CURRENT_SSID'"
+# ── 6. Find the Jetson's new IP and update ~/.ssh/config so 'ssh jetson' keeps working
+echo "==> $(c_g 'Step 6') finding Jetson on the new WiFi"
+NEW_IP=""
 if [ "$DRY_RUN" = "1" ]; then
-  echo "    $(c_d '[dry-run] would ssh jetson')"
+  echo "    $(c_d '[dry-run] would scan for Jetson via mDNS / arp')"
+  NEW_IP="<dry-run>"
 else
-  for i in 1 2 3 4 5 6 7 8 9 10; do
+  for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
     sleep 3
-    if ssh -o ConnectTimeout=3 -o BatchMode=yes jetson 'echo up' >/dev/null 2>&1 || \
-       ssh -o ConnectTimeout=3 -o BatchMode=yes "$SSH_USER@soilcrack.local" 'echo up' >/dev/null 2>&1; then
-      echo "    $(c_g 'Jetson reachable on shared WiFi.')"
-      echo "    Browser: $(c_g 'http://soilcrack.local:5173')"
-      exit 0
+    # Try mDNS via Windows (works for the browser, may work via PowerShell)
+    NEW_IP=$(powershell.exe -NoProfile -Command "(Resolve-DnsName -Name 'soilcrack.local' -ErrorAction SilentlyContinue | Where-Object {\$_.Type -eq 'A'} | Select-Object -First 1).IPAddress" 2>/dev/null | tr -d '\r\n ')
+    if [ -n "$NEW_IP" ]; then
+      if ssh -o ConnectTimeout=3 -o BatchMode=yes "$SSH_USER@$NEW_IP" 'echo up' >/dev/null 2>&1; then
+        echo "    $(c_g "Jetson is at $NEW_IP")"
+        break
+      fi
     fi
     printf "."
+    NEW_IP=""
   done
+fi
+
+if [ -n "$NEW_IP" ] && [ "$NEW_IP" != "<dry-run>" ]; then
+  # Update ~/.ssh/config so 'ssh jetson' uses the new IP
+  CFG=~/.ssh/config
+  if grep -q "^Host jetson$" "$CFG" 2>/dev/null; then
+    sed -i "/^Host jetson$/,/^Host /{s/^[[:space:]]*HostName .*/\tHostName $NEW_IP/}" "$CFG"
+    echo "    $(c_g 'Updated ~/.ssh/config') — 'ssh jetson' now points at $NEW_IP"
+  else
+    cat >> "$CFG" <<EOF
+
+Host jetson
+	HostName $NEW_IP
+	User $SSH_USER
+	IdentityFile ~/.ssh/jetson_nano
+EOF
+    chmod 600 "$CFG"
+    echo "    $(c_g 'Created ~/.ssh/config entry') — 'ssh jetson' now points at $NEW_IP"
+  fi
+
+  echo
+  echo "==> $(c_g 'READY') — open in browser:  http://soilcrack.local:5173  (or http://$NEW_IP:5173)"
+  exit 0
+else
   echo " $(c_y 'still propagating — may take another 15s for Jetson to fully join.')"
+  echo "    Manual recovery: ssh sdp-w-nano@10.42.0.1 'hostname -I'  (after rejoining hotspot)"
 fi
 
 echo
