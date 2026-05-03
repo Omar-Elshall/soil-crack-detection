@@ -22,19 +22,23 @@
 # script can't read the password, it just opens the browser and leaves the
 # Jetson on whichever WiFi it auto-joined.
 
-JETSON_IP="${JETSON_IP:-192.168.55.1}"
-# Use the IP-based URL by default — it's guaranteed to work over the USB
-# cable. mDNS (soilcrack.local) needs Bonjour on the browser side and may
-# fail on some networks. Override with URL=... if you want mDNS.
-URL="${URL:-http://192.168.55.1:5173}"
 SSH_USER="${SSH_USER:-sdp-w-nano}"
+
+# Targets to probe, in priority order:
+#   1. 192.168.55.1   — USB ethernet gadget (works on dev kits with the device-
+#                       mode port broken out; doesn't work on most flight carriers
+#                       like Holybro that don't expose that port externally)
+#   2. soilcrack.local — mDNS over whatever WiFi both devices share
+#   3. (env override) JETSON_HOST                 — explicit host
+TARGETS=("${JETSON_HOST:-}" "192.168.55.1" "soilcrack.local")
+URL_DEFAULT="http://soilcrack.local:5173"
 
 c_g() { printf "\033[32m%s\033[0m" "$*"; }
 c_y() { printf "\033[33m%s\033[0m" "$*"; }
 c_d() { printf "\033[2m%s\033[0m" "$*"; }
 
-echo "==> Watching for Jetson at $JETSON_IP (USB-C cable)"
-echo "    On cable plug-in: pull latest repo + share WiFi creds + open browser"
+echo "==> Watching for Jetson — tries USB cable (192.168.55.1) then WiFi (soilcrack.local)"
+echo "    On detect: pull latest repo + (best-effort) share WiFi creds + open browser"
 echo "    Ctrl+C to stop"
 echo
 
@@ -48,10 +52,26 @@ fi
 echo
 
 was_up=0
+detected_host=""
 while :; do
-  if ssh -o ConnectTimeout=2 -o BatchMode=yes "$SSH_USER@$JETSON_IP" 'echo up' >/dev/null 2>&1; then
+  detected_host=""
+  for h in "${TARGETS[@]}"; do
+    [ -z "$h" ] && continue
+    if ssh -o ConnectTimeout=2 -o BatchMode=yes "$SSH_USER@$h" 'echo up' >/dev/null 2>&1; then
+      detected_host="$h"
+      break
+    fi
+  done
+  if [ -n "$detected_host" ]; then
     if [ "$was_up" = "0" ]; then
-      echo "[$(date +%H:%M:%S)] $(c_g 'Jetson detected') over USB"
+      echo "[$(date +%H:%M:%S)] $(c_g 'Jetson detected') via $detected_host"
+      # If we detected via USB ethernet, prefer the IP URL (no mDNS dependency).
+      # Over WiFi, use mDNS URL.
+      if [ "$detected_host" = "192.168.55.1" ]; then
+        URL="${URL:-http://192.168.55.1:5173}"
+      else
+        URL="${URL:-$URL_DEFAULT}"
+      fi
 
       # ── Best-effort WiFi credential sharing ──────────────────────────────
       ssid=""
@@ -66,7 +86,7 @@ while :; do
 
       if [ -n "$ssid" ] && [ -n "$key" ]; then
         echo "    Sharing WiFi creds: SSID=$(c_d "$ssid")"
-        ssh "$SSH_USER@$JETSON_IP" "
+        ssh "$SSH_USER@$detected_host" "
           sudo nmcli connection modify Hotspot connection.autoconnect no 2>/dev/null
           sudo nmcli connection down Hotspot 2>/dev/null
           # Use & + nohup so SSH session returns even if WiFi switch drops other links
@@ -96,7 +116,7 @@ while :; do
     fi
   else
     if [ "$was_up" = "1" ]; then
-      echo "[$(date +%H:%M:%S)] $(c_y 'Jetson cable unplugged')"
+      echo "[$(date +%H:%M:%S)] $(c_y 'Jetson unreachable')"
       was_up=0
     fi
   fi
