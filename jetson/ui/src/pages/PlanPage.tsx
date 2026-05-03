@@ -8,7 +8,7 @@ import {
   Grid3x3, Upload, Play, Trash2, MapPin, AlertTriangle,
   CheckCircle, Loader, FlaskConical, Info, Undo2, Check,
 } from "lucide-react";
-import { API } from "../api/config";
+import { getActive } from "../api/mavlinkSource";
 
 // ── Geometry helpers ────────────────────────────────────────────────────────────
 
@@ -279,7 +279,7 @@ export default function PlanPage() {
   async function handleTestFlight() {
     setTestStatus({ type: "uploading", msg: "Test flight running (~20s)…" });
     try {
-      const res = await fetch(`${API.mavlink}/command/test-flight`, { method: "POST" });
+      const res = await fetch(`${getActive().base}/command/test-flight`, { method: "POST" });
       const data = await res.json();
       setTestStatus(data.ok
         ? { type: "ok",    msg: data.message }
