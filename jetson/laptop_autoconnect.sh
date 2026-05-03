@@ -97,11 +97,12 @@ bootstrap_via_hotspot() {
     fi
   fi
 
-  # Add the Jetson hotspot WiFi profile if missing
-  local profiles
-  profiles=$(powershell.exe -NoProfile -Command "netsh wlan show profiles" 2>/dev/null | tr -d '\r')
-  if ! echo "$profiles" | grep -q "$JETSON_HOTSPOT_SSID"; then
-    echo "    $(c_d "Adding '$JETSON_HOTSPOT_SSID' profile to Windows...")"
+  # Force-delete any existing Windows profile so we always re-create it as
+  # connectionMode=manual (older versions of this script created it as auto,
+  # which caused Windows to keep flipping back to the Jetson hotspot).
+  powershell.exe -NoProfile -Command "netsh wlan delete profile name='$JETSON_HOTSPOT_SSID'" >/dev/null 2>&1
+  echo "    $(c_d "Adding '$JETSON_HOTSPOT_SSID' profile (manual mode)...")"
+  if true; then
     local tmpxml win_tmp
     tmpxml=$(mktemp --suffix=.xml)
     cat > "$tmpxml" <<XML
@@ -109,7 +110,7 @@ bootstrap_via_hotspot() {
 <WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1">
 <name>$JETSON_HOTSPOT_SSID</name>
 <SSIDConfig><SSID><name>$JETSON_HOTSPOT_SSID</name></SSID></SSIDConfig>
-<connectionType>ESS</connectionType><connectionMode>auto</connectionMode>
+<connectionType>ESS</connectionType><connectionMode>manual</connectionMode>
 <MSM><security>
 <authEncryption><authentication>WPA2PSK</authentication><encryption>AES</encryption><useOneX>false</useOneX></authEncryption>
 <sharedKey><keyType>passPhrase</keyType><protected>false</protected><keyMaterial>$JETSON_HOTSPOT_PASS</keyMaterial></sharedKey>
