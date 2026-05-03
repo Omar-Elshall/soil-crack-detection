@@ -29,8 +29,41 @@
 
 set -u
 
-SSH_HOST="${SSH_HOST:-jetson}"
 TIMEOUT="${TIMEOUT:-90}"
+
+# Auto-detect where the Jetson is reachable. Tries in order:
+#   1. SSH_HOST if explicitly set
+#   2. 'jetson' (your ~/.ssh/config alias — likely on regular WiFi)
+#   3. '10.42.0.1' (the Jetson's hotspot address)
+#   4. 'ubuntu.local' (mDNS, works on either network if avahi is up)
+auto_detect_host() {
+  local candidates
+  if [ -n "${SSH_HOST:-}" ]; then
+    candidates=("$SSH_HOST")
+  else
+    candidates=("jetson" "10.42.0.1" "ubuntu.local")
+  fi
+  for h in "${candidates[@]}"; do
+    if ssh -o ConnectTimeout=4 -o BatchMode=yes "$h" 'echo up' >/dev/null 2>&1; then
+      echo "$h"
+      return 0
+    fi
+  done
+  return 1
+}
+
+echo -n "Detecting Jetson... "
+SSH_HOST=$(auto_detect_host) || {
+  echo "FAILED"
+  echo "    Could not reach the Jetson via 'jetson', '10.42.0.1', or 'ubuntu.local'."
+  echo "    Check that:"
+  echo "      - The Jetson is powered on"
+  echo "      - You're on the same WiFi as the Jetson, OR connected to its hotspot 'soil-crack-demo'"
+  echo "      - Your SSH key is set up (try: ssh jetson 'echo up')"
+  exit 1
+}
+echo "found at $SSH_HOST"
+echo
 
 c_red()    { printf "\033[31m%s\033[0m" "$*"; }
 c_green()  { printf "\033[32m%s\033[0m" "$*"; }
@@ -40,18 +73,23 @@ c_dim()    { printf "\033[2m%s\033[0m"  "$*"; }
 echo "==> Soil Crack Detection — Demo Startup"
 echo
 
-# 1. SSH reachability
-echo -n "[1/6] SSH to $SSH_HOST: "
-if ssh -o ConnectTimeout=5 -o BatchMode=yes "$SSH_HOST" 'echo up' >/dev/null 2>&1; then
-  c_green "ok"; echo
-else
-  c_red "FAILED"; echo
-  echo "    Cannot reach the Jetson. Check that:"
-  echo "    - The Jetson is powered on and on WiFi"
-  echo "    - 'ssh $SSH_HOST' works without a password (key auth configured)"
-  echo "    - Both devices are on the same network"
+# 1. Verify model files present (gitignored — must be on Jetson disk)
+echo -n "[1/6] Verifying model files: "
+MODEL_CHECK=$(ssh "$SSH_HOST" '
+  cd ~/soil-crack-detection
+  for m in best_model_num_real_4.pt best_model_num_real_6.pt; do
+    [ -f results/saved_models/EfficientCrackNet/$m ] || echo MISSING:$m
+  done
+')
+if [ -n "$MODEL_CHECK" ]; then
+  c_red "MISSING"; echo
+  echo "    $MODEL_CHECK"
+  echo "    These are gitignored. SCP them from your dev machine:"
+  echo "      scp results/saved_models/EfficientCrackNet/best_model_num_real_*.pt \\"
+  echo "        $SSH_HOST:soil-crack-detection/results/saved_models/EfficientCrackNet/"
   exit 1
 fi
+c_green "ok"; echo
 
 # 2. Kill leftovers
 echo -n "[2/6] Killing any leftover services: "
