@@ -31,8 +31,17 @@ c_y() { printf "\033[33m%s\033[0m" "$*"; }
 c_d() { printf "\033[2m%s\033[0m" "$*"; }
 
 echo "==> Watching for Jetson at $JETSON_IP (USB-C cable)"
-echo "    On cable plug-in: try to share WiFi creds + open browser"
+echo "    On cable plug-in: pull latest repo + share WiFi creds + open browser"
 echo "    Ctrl+C to stop"
+echo
+
+# Pull latest on startup so the laptop's clone of demo scripts stays current.
+# Soft-fails so a missing internet connection doesn't kill the watcher.
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -d "$REPO_DIR/.git" ]; then
+  echo "[$(date +%H:%M:%S)] $(c_d 'pulling latest scripts...')"
+  ( cd "$REPO_DIR" && git pull --ff-only 2>&1 | tail -3 ) || true
+fi
 echo
 
 was_up=0
