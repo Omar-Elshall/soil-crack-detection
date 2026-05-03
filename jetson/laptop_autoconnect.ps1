@@ -28,7 +28,8 @@ $JETSON_HOTSPOT_PASS = "cracksoil2026"
 $JETSON_HOTSPOT_IP   = "10.42.0.1"
 $SSH_USER            = "sdp-w-nano"
 $URL_DEFAULT         = "http://soilcrack.local:5173"
-$BOOTSTRAP_COOLDOWN  = 90
+$BOOTSTRAP_COOLDOWN_OK   = 90    # cooldown after a successful bootstrap
+$BOOTSTRAP_COOLDOWN_FAIL = 20    # cooldown after a failed attempt (Jetson likely still booting)
 
 $SSH_EXE = "C:\Windows\System32\OpenSSH\ssh.exe"
 if (-not (Test-Path $SSH_EXE)) { $SSH_EXE = "ssh.exe" }
@@ -201,10 +202,14 @@ Write-Host "    Detect -> bootstrap if needed -> open browser. Ctrl+C to stop."
 Write-Host ""
 
 $lastBootstrap = 0
+$lastBootstrapOk = $false
 $wasUp = $false
+$lastHeartbeat = 0
 $url = ""
 while ($true) {
     $detected = Probe-Jetson
+    $now = [int][double]::Parse((Get-Date -UFormat %s))
+
     if ($detected) {
         if (-not $wasUp) {
             Write-Host ("[" + (Get-Date -Format "HH:mm:ss") + "] ") -NoNewline
@@ -221,12 +226,19 @@ while ($true) {
             Write-Host "Jetson unreachable" -ForegroundColor Yellow
             $wasUp = $false
         }
-        $now = [int][double]::Parse((Get-Date -UFormat %s))
-        if (($now - $lastBootstrap) -ge $BOOTSTRAP_COOLDOWN) {
+        $cooldown = if ($lastBootstrapOk) { $BOOTSTRAP_COOLDOWN_OK } else { $BOOTSTRAP_COOLDOWN_FAIL }
+        $sinceLast = $now - $lastBootstrap
+        if ($sinceLast -ge $cooldown) {
             $lastBootstrap = $now
             Write-Host ("[" + (Get-Date -Format "HH:mm:ss") + "] ") -NoNewline
             Write-Host "Jetson unreachable - bootstrapping via hotspot" -ForegroundColor Yellow
-            Bootstrap-ViaHotspot | Out-Null
+            $lastBootstrapOk = (Bootstrap-ViaHotspot) -eq $true
+            $lastHeartbeat = $now
+        } elseif (($now - $lastHeartbeat) -ge 15) {
+            $remain = $cooldown - $sinceLast
+            Write-Host ("[" + (Get-Date -Format "HH:mm:ss") + "] ") -NoNewline
+            Write-Host "still watching... (next bootstrap retry in $remain s)" -ForegroundColor DarkGray
+            $lastHeartbeat = $now
         }
     }
     Start-Sleep -Seconds 3
