@@ -41,7 +41,7 @@ auto_detect_host() {
   if [ -n "${SSH_HOST:-}" ]; then
     candidates=("$SSH_HOST")
   else
-    candidates=("jetson" "10.42.0.1" "ubuntu.local")
+    candidates=("soilcrack.local" "jetson" "10.42.0.1")
   fi
   for h in "${candidates[@]}"; do
     if ssh -o ConnectTimeout=4 -o BatchMode=yes "$h" 'echo up' >/dev/null 2>&1; then
