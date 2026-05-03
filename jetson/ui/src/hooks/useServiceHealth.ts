@@ -11,7 +11,9 @@ export interface ServiceHealth {
 
 async function ping(url: string): Promise<boolean> {
   try {
-    const r = await fetch(`${url}/status`, { signal: AbortSignal.timeout(2000) });
+    // 5 s — first hit through mDNS (soilcrack.local) can take 2-3 s on
+    // some networks, and the browser sometimes re-resolves per request.
+    const r = await fetch(`${url}/status`, { signal: AbortSignal.timeout(5000) });
     return r.ok;
   } catch { return false; }
 }
