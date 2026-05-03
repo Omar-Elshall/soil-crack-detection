@@ -38,13 +38,20 @@ $SSH_KEY = Join-Path $env:USERPROFILE ".ssh\jetson_nano"
 # --- Helpers ---------------------------------------------------------------
 function Win-Ssh {
     param([string]$Target, [string]$Cmd)
-    # If target is the 'jetson' alias, rely on ~/.ssh/config IdentityFile.
-    # Otherwise (raw IP/hostname) pass the key explicitly so ssh knows what
-    # to authenticate with.
+    # ConnectTimeout caps TCP connect; ServerAlive* kills hung sessions in
+    # ~3s. Combined cap per probe ~3s even on dead routes.
+    $args = @(
+        "-o", "ConnectTimeout=2",
+        "-o", "BatchMode=yes",
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "ServerAliveInterval=2",
+        "-o", "ServerAliveCountMax=1"
+    )
     if ($Target -eq "jetson") {
-        & $SSH_EXE -o ConnectTimeout=2 -o BatchMode=yes -o StrictHostKeyChecking=no $Target $Cmd *>$null
+        & $SSH_EXE @args $Target $Cmd *>$null
     } else {
-        & $SSH_EXE -i $SSH_KEY -o ConnectTimeout=2 -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL $Target $Cmd *>$null
+        $args += @("-i", $SSH_KEY, "-o", "UserKnownHostsFile=NUL")
+        & $SSH_EXE @args $Target $Cmd *>$null
     }
     return ($LASTEXITCODE -eq 0)
 }
