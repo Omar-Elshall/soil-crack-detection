@@ -24,6 +24,57 @@ flight = None
 conn = None
 
 
+@router.post("/command/demo-flight")
+async def demo_flight(
+    altitude_m: float = 1.0,
+    hover_seconds: float = 30.0,
+):
+    """Run a fully-sequenced demo flight: GUIDED -> ARM -> takeoff to
+    `altitude_m` -> hover for `hover_seconds` -> LAND -> disarm.
+    Returns step-by-step results. Bails early if any step fails.
+    """
+    import asyncio
+    if flight is None:
+        return {"ok": False, "error": "Service not ready"}
+
+    steps = []
+
+    def step(name, result):
+        ok = bool(result.get("ok"))
+        steps.append({"step": name, "ok": ok, "message": result.get("message", "")})
+        return ok
+
+    # 1. GUIDED
+    if not step("guided", flight.set_guided_mode()):
+        return {"ok": False, "steps": steps}
+    await asyncio.sleep(1.0)
+
+    # 2. ARM
+    if not step("arm", flight.arm()):
+        return {"ok": False, "steps": steps}
+    await asyncio.sleep(1.0)
+
+    # 3. TAKEOFF
+    if not step("takeoff", flight.takeoff(altitude_m)):
+        # try to disarm to be safe
+        flight.disarm()
+        return {"ok": False, "steps": steps}
+
+    # 4. HOVER
+    await asyncio.sleep(hover_seconds)
+    steps.append({"step": "hovered", "ok": True, "message": f"{hover_seconds}s"})
+
+    # 5. LAND
+    if not step("land", flight.land()):
+        return {"ok": False, "steps": steps}
+
+    # 6. DISARM after land settles
+    await asyncio.sleep(8.0)
+    step("disarm", flight.disarm())
+
+    return {"ok": True, "steps": steps}
+
+
 @router.post("/command/play-tone")
 async def play_tone(tune: str = "MFT200L8>cdefg"):
     """Send a PLAY_TUNE message to the Pixhawk's onboard buzzer.

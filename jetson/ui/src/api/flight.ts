@@ -22,3 +22,10 @@ export interface Waypoint { lat: number; lon: number; alt: number }
 export const uploadMission  = (waypoints: Waypoint[], takeoff_alt = 4.0) =>
   cmd("upload-mission", { waypoints, takeoff_alt });
 export const startMission   = () => cmd("start-mission");
+
+// Sequenced demo flight: GUIDED -> ARM -> takeoff -> hover -> LAND -> disarm.
+// Backend handles timing; UI just awaits the final response.
+export const demoFlight     = (altitude_m = 1.0, hover_seconds = 30.0) =>
+  fetch(`${API.mavlink}/command/demo-flight?altitude_m=${altitude_m}&hover_seconds=${hover_seconds}`, {
+    method: "POST",
+  }).then((r) => r.json());
