@@ -50,16 +50,17 @@ class MAVLinkConnection:
                 mavutil.mavlink.MAV_DATA_STREAM_EXTRA2,            # VFR_HUD
                 mavutil.mavlink.MAV_DATA_STREAM_EXTRA3,            # AHRS etc.
             ]
+            stream_hz = int(os.environ.get("MAVLINK_STREAM_HZ", "10"))
             for stream_id in streams:
                 self.master.mav.request_data_stream_send(
                     self.master.target_system,
                     self.master.target_component,
                     stream_id,
-                    10,  # 10 Hz
+                    stream_hz,
                     1,   # start
                 )
             time.sleep(0.1)
-            print("Telemetry streams requested at 10 Hz.")
+            print(f"Telemetry streams requested at {stream_hz} Hz.")
 
             self._running = True
             self._heartbeat_thread = threading.Thread(target=self._send_heartbeat, daemon=True)

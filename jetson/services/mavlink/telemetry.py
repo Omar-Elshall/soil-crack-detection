@@ -57,6 +57,7 @@ class TelemetryPoller:
         self._running = False
         self._thread = None
         self.status_messages: list[dict] = []  # last 30 ArduPilot messages
+        self.last_msg_ts = 0.0  # epoch s of most recent MAVLink message of any type
 
     def start(self):
         self._running = True
@@ -82,10 +83,18 @@ class TelemetryPoller:
             if self._paused or not self.conn.connected:
                 time.sleep(0.05)
                 continue
-            msg = self.conn.recv(blocking=False, timeout=0.05)
+            try:
+                msg = self.conn.recv(blocking=False, timeout=0.05)
+            except Exception:
+                # Serial port can throw mid-read when the radio is yanked
+                # or while the watchdog is reconnecting. Don't kill the
+                # poller thread — sleep briefly and try again.
+                time.sleep(0.1)
+                continue
             if msg is None:
                 continue
             mt = msg.get_type()
+            self.last_msg_ts = time.time()
             with self._lock:
                 if mt == "GLOBAL_POSITION_INT":
                     self.snapshot.lat = msg.lat / 1e7
@@ -126,7 +135,11 @@ class TelemetryPoller:
     def get(self) -> dict:
         with self._lock:
             d = self.snapshot.to_dict()
-            d["connected"] = self.conn.connected
+            # connected = link object thinks it's open AND we've received a
+            # message recently. Catches "radio yanked from USB" where the
+            # link doesn't error out but the data stream just stops.
+            fresh = (time.time() - self.last_msg_ts) < 8.0
+            d["connected"] = self.conn.connected and fresh
             d["status_messages"] = list(self.status_messages)
             return d
 

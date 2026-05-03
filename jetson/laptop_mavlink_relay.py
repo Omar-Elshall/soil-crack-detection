@@ -59,6 +59,10 @@ def auto_detect_com_port() -> str | None:
 
 
 def main():
+    # SiK telem radio at 57600 baud can't sustain 10 Hz across all streams.
+    # Drop to a rate that fits the link so SYS_STATUS (battery voltage) lands.
+    os.environ.setdefault("MAVLINK_STREAM_HZ", "3")
+
     port = os.environ.get("RELAY_COM")
     if not port:
         port = auto_detect_com_port()
@@ -78,6 +82,37 @@ def main():
     poller = TelemetryPoller(conn)
     poller.start()
     flight = FlightController(conn)
+
+    # Watchdog: when the radio is unplugged + replugged, pymavlink keeps
+    # the old serial handle and silently stops receiving. Detect that and
+    # re-open the connection in-place — no need to bounce the whole process.
+    # 15 s of silence is the "link is really dead" threshold.
+    import threading as _t
+    def _watchdog():
+        time.sleep(20)  # grace period for first messages
+        while True:
+            time.sleep(5)
+            silence = time.time() - poller.last_msg_ts
+            if silence < 15:
+                continue
+            print(f"[relay] WATCHDOG: no MAVLink for {silence:.1f}s — reconnecting...", flush=True)
+            poller.pause()  # so its recv() doesn't race the serial close
+            try:
+                conn.disconnect()
+            except Exception as e:
+                print(f"[relay] disconnect error: {e}", flush=True)
+            time.sleep(1)
+            # Find the COM port again — radio may have been re-enumerated.
+            new_port = os.environ.get("RELAY_COM") or auto_detect_com_port() or port
+            conn.port = new_port
+            ok = conn.connect(timeout=10)
+            poller.resume()
+            if ok:
+                poller.last_msg_ts = time.time()  # reset the freshness clock
+                print(f"[relay] WATCHDOG: reconnected on {new_port}", flush=True)
+            else:
+                print(f"[relay] WATCHDOG: reconnect on {new_port} failed; will retry in 5s", flush=True)
+    _t.Thread(target=_watchdog, daemon=True).start()
 
     # Inject into the shared routes module — same pattern as Jetson main.py
     _routes.poller = poller

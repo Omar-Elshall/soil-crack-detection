@@ -29,7 +29,12 @@ async function ping(base: string, timeoutMs = 1500): Promise<boolean> {
     const t = setTimeout(() => ctl.abort(), timeoutMs);
     const r = await fetch(`${base}/status`, { signal: ctl.signal });
     clearTimeout(t);
-    return r.ok;
+    if (!r.ok) return false;
+    // The relay process can be alive while the radio is unplugged — keep
+    // serving stale snapshots — so we have to look at the body. The MAVLink
+    // service sets connected=false once no message has arrived in ~8 s.
+    const body = await r.json();
+    return body && body.connected === true;
   } catch {
     return false;
   }

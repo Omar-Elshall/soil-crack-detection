@@ -207,13 +207,23 @@ sudo nmcli connection modify Hotspot connection.autoconnect-priority 1 2>/dev/nu
 # (or in the background even before, since the radio is reachable independently).
 # Reaped on script exit via the trap below.
 $RELAY_SCRIPT = Join-Path $PSScriptRoot "laptop_mavlink_relay.py"
-$RELAY_VENV   = Join-Path $env:USERPROFILE "soilcrack-relay-venv\Scripts\python.exe"
+# pythonw.exe (no console) — python.exe gets killed when its parent console goes away,
+# which happens when this watcher is launched from a transient bash/console session.
+$RELAY_VENV   = Join-Path $env:USERPROFILE "soilcrack-relay-venv\Scripts\pythonw.exe"
 $relayProc    = $null
+$lastRelaySpawn = 0
+$RELAY_RESPAWN_COOLDOWN = 30
 
 function Ensure-Relay {
-    if ($relayProc -and -not $relayProc.HasExited) { return }
+    if ($script:relayProc -and -not $script:relayProc.HasExited) { return }
     if (-not (Test-Path $RELAY_SCRIPT)) { return }
-    $py = if (Test-Path $RELAY_VENV) { $RELAY_VENV } else { "python.exe" }
+    # Skip if no serial port present — radio likely unplugged. Saves a
+    # spawn-die loop while still re-trying when the user plugs it back in.
+    if ([System.IO.Ports.SerialPort]::GetPortNames().Count -eq 0) { return }
+    $now = [int][double]::Parse((Get-Date -UFormat %s))
+    if (($now - $script:lastRelaySpawn) -lt $RELAY_RESPAWN_COOLDOWN) { return }
+    $script:lastRelaySpawn = $now
+    $py = if (Test-Path $RELAY_VENV) { $RELAY_VENV } else { "pythonw.exe" }
     Write-Host ("[" + (Get-Date -Format "HH:mm:ss") + "] ") -NoNewline
     Write-Host "starting MAVLink relay (radio path)..." -ForegroundColor Cyan
     $script:relayProc = Start-Process -FilePath $py `
@@ -258,6 +268,9 @@ while ($true) {
             Write-Host "    browser -> " -NoNewline; Write-Host $url -ForegroundColor Green
             $wasUp = $true
         }
+        # Re-check every iteration in case the radio was unplugged + replugged
+        # while Jetson stayed up. Ensure-Relay self-throttles + skips when no port.
+        Ensure-Relay
     } else {
         if ($wasUp) {
             Write-Host ""
