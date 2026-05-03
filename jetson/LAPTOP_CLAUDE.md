@@ -8,13 +8,40 @@ UAV-based AI system for detecting cracked soil in UAE farms. AUS senior design, 
 
 ## Current state (set up by the dev-machine Claude session)
 
-- Jetson is at git commit on branch `jetson-integration` matching origin
-- Both model checkpoints are on the Jetson disk: `real_4` (deployment default) and `real_6` (higher F1 but slower)
-- WiFi hotspot connection profile `Hotspot` is configured on the Jetson but **not active by default**. Jetson currently joins the regular WiFi the user is on.
-- Avahi (mDNS) is installed and running on the Jetson, so `ubuntu.local` resolves
-- All services are stopped (the user kills them between sessions to save battery)
+- Jetson is at HEAD of `jetson-integration`
+- **Hostname is `soilcrack`** so the stable URL is `http://soilcrack.local:5173` (works from any laptop on the same network as the Jetson, regardless of which WiFi)
+- Both model checkpoints on Jetson: `real_4` (deployment default) and `real_6`
+- TRT engines built (or being built) per-checkpoint at `results/efficientcracknet_real{4,6}_fp16.trt`. `model.py` auto-loads the matching engine when `MODEL_PATH` is set.
+- WiFi hotspot connection profile `Hotspot` exists with **autoconnect-priority 1 (fallback)**. It only activates when no known regular WiFi is reachable.
+- Avahi (mDNS) is broadcasting `soilcrack.local`
+- **systemd unit `soilcrack.service` is enabled** — services auto-start on boot
+- On startup, `play_ready_tone.sh` polls all 4 endpoints; once green, it POSTs to mavlink `/command/play-tone` and the Pixhawk buzzer plays a short rising arpeggio. **That beep means "everything is up, browser will work now."**
 
-## The two scripts the user will ask you to run
+## Stable URL (works on any WiFi)
+
+`http://soilcrack.local:5173` — once both Jetson and laptop are on the same network, the browser resolves the `.local` name via mDNS. No IP-tracking needed.
+
+If the user ever reports `soilcrack.local` won't load:
+- Both devices on same network? `ssh soilcrack.local 'hostname -I'`
+- mDNS still up? `ssh jetson 'systemctl is-active avahi-daemon'`
+- Some corporate networks block multicast — fall back to the IP (`ssh jetson 'hostname -I'`).
+
+## Connecting the Jetson to a new WiFi (e.g. demo location)
+
+```bash
+bash jetson/connect_wifi.sh "DemoNetworkSSID" "demopassword"
+```
+
+If the Jetson isn't reachable from the laptop yet (because no shared network), the workflow is:
+
+1. Power on Jetson at the new location
+2. Jetson's known WiFi profiles all fail → Hotspot fallback activates (priority 1)
+3. Laptop joins SSID `soil-crack-demo` (password `cracksoil2026`)
+4. Run `SSH_HOST=10.42.0.1 bash jetson/connect_wifi.sh "DemoNet" "demopassword"`
+5. Jetson reconnects to demo WiFi; laptop joins the same WiFi
+6. Browse `http://soilcrack.local:5173`
+
+## The scripts
 
 ### `bash jetson/demo_start.sh`
 The full startup. Auto-detects whether the Jetson is reachable as `jetson` (regular WiFi), `10.42.0.1` (hotspot), or `ubuntu.local` (mDNS). Then:

@@ -84,6 +84,36 @@ Threshold = **0.10%** chosen as the highest value that still retains ≥ 90% of 
 
 ---
 
+## Stable URL on any network: `http://soilcrack.local:5173`
+
+Jetson hostname is `soilcrack` and avahi/mDNS broadcasts it. Whichever WiFi network the Jetson and the laptop share, the URL never changes. Browser handles `.local` natively (Bonjour on macOS/Windows, libnss-mdns on Linux).
+
+## Auto-start on boot
+
+`soilcrack.service` is enabled — power on the Jetson and all 4 services come up by themselves. Once everything is healthy, `play_ready_tone.sh` POSTs to mavlink `/command/play-tone` and the **Pixhawk buzzer plays a short rising arpeggio** as the audible "ready, browser will work now" signal.
+
+Service status / logs:
+```bash
+ssh jetson 'systemctl status soilcrack.service'
+ssh jetson 'tail -50 /tmp/soilcrack.log'      # captured stdout/stderr
+ssh jetson 'tail /tmp/ready-tone.log'         # tone-script output
+```
+
+## Connecting Jetson to a new WiFi (e.g. demo location)
+
+Hotspot is configured as a low-priority fallback. So when you arrive at a new location:
+
+1. Power on Jetson — it tries known WiFi profiles first, fails, falls back to its own hotspot
+2. Laptop joins SSID `soil-crack-demo` (password `cracksoil2026`)
+3. Add the demo location's WiFi to the Jetson:
+   ```bash
+   SSH_HOST=10.42.0.1 bash jetson/connect_wifi.sh "DemoSSID" "demopassword"
+   ```
+4. Jetson reconnects to that WiFi; laptop joins the same WiFi
+5. Browse `http://soilcrack.local:5173`
+
+Once added, that network is saved on the Jetson and auto-connects on every future boot.
+
 ## Network: no external WiFi needed (Jetson is its own AP)
 
 The Jetson can broadcast its own WiFi network so the laptop reaches it without depending on any infrastructure. This makes the demo portable and removes the "what's the WiFi here?" failure mode.
