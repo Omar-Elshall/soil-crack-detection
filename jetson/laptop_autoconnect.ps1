@@ -42,7 +42,11 @@ function Win-Ssh {
 
 function Get-CurrentSsid {
     $info = netsh wlan show interfaces 2>$null
-    if ($info -match '^\s*SSID\s*:\s*(.+?)\s*$') { return $matches[1] }
+    if (-not $info) { return $null }
+    foreach ($line in $info) {
+        # match exactly the SSID line (not BSSID, which also contains "SSID")
+        if ($line -match '^\s*SSID\s+:\s+(.+?)\s*$') { return $matches[1] }
+    }
     return $null
 }
 
