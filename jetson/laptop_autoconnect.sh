@@ -23,7 +23,10 @@
 # Jetson on whichever WiFi it auto-joined.
 
 JETSON_IP="${JETSON_IP:-192.168.55.1}"
-URL="${URL:-http://soilcrack.local:5173}"
+# Use the IP-based URL by default — it's guaranteed to work over the USB
+# cable. mDNS (soilcrack.local) needs Bonjour on the browser side and may
+# fail on some networks. Override with URL=... if you want mDNS.
+URL="${URL:-http://192.168.55.1:5173}"
 SSH_USER="${SSH_USER:-sdp-w-nano}"
 
 c_g() { printf "\033[32m%s\033[0m" "$*"; }

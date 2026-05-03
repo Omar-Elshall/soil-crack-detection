@@ -16,6 +16,21 @@ setlocal
 set "REPO_PATH=~/soil-crack-detection"
 set "WATCHER=%REPO_PATH%/jetson/laptop_autoconnect.sh"
 
+:: ── Sanity checks ────────────────────────────────────────────────────────────
+echo Sanity check: WSL interop + script presence
+where wsl.exe >nul 2>&1 || (
+  echo ERROR: wsl.exe not found in PATH. Is WSL2 installed?
+  pause & exit /b 1
+)
+wsl.exe -e bash -c "test -f %WATCHER%" || (
+  echo ERROR: Cannot find %WATCHER% in WSL.
+  echo Make sure the repo is cloned at ~/soil-crack-detection inside WSL.
+  echo Or edit REPO_PATH at the top of this .bat file.
+  pause & exit /b 1
+)
+echo OK
+echo.
+
 :: Windows Startup folder
 set "STARTUP_DIR=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
 set "VBS_FILE=%STARTUP_DIR%\soil-crack-autoconnect.vbs"
