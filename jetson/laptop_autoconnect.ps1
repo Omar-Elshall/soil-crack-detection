@@ -135,10 +135,14 @@ function Bootstrap-ViaHotspot {
     }
 
     Write-Host "    Pushing creds to Jetson..."
-    # Build the bash command using a single-quoted here-string (no PS escaping
-    # interpretation), then substitute the SSID/password.
+    # Bash command we ship to the Jetson:
+    #   1. lower hotspot autoconnect priority so it stays out of the way
+    #   2. backgrounded: drop hotspot, wait for radio to switch out of AP
+    #      mode, rescan (REQUIRED — radio in AP mode shows no scan results),
+    #      then nmcli connect to the new SSID. Backgrounded with nohup so the
+    #      SSH session can return cleanly before the WiFi link drops.
     $bashTemplate = @'
-sudo nmcli connection modify Hotspot connection.autoconnect-priority 1 2>/dev/null; nohup sudo bash -c 'sleep 4 && nmcli device wifi connect "@@SSID@@" password "@@PASS@@"' > /tmp/wifi-share.log 2>&1 & disown; exit 0
+sudo nmcli connection modify Hotspot connection.autoconnect-priority 1 2>/dev/null; nohup sudo bash -c 'sleep 2 && nmcli connection down Hotspot && sleep 3 && nmcli device wifi rescan && sleep 8 && nmcli device wifi connect "@@SSID@@" password "@@PASS@@"' > /tmp/wifi-share.log 2>&1 & disown; exit 0
 '@
     $pushCmd = $bashTemplate.Replace('@@SSID@@', $ssid).Replace('@@PASS@@', $pass)
     & $SSH_EXE -i $SSH_KEY -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL "$SSH_USER@$JETSON_HOTSPOT_IP" $pushCmd *>$null
