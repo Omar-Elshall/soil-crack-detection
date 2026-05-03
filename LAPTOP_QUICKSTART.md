@@ -6,7 +6,7 @@ Run these once on the demo laptop. After that, the demo is **plug in LiPo, plug 
 
 - Windows 10/11 with **WSL2** installed (Ubuntu)
 - The Jetson's SSH private key + `~/.ssh/config` entry copied into WSL (see Section A below if not done)
-- This repo cloned anywhere in WSL (default expected: `~/soil-crack-detection`)
+- This repo cloned in WSL at `~/projects/soil-crack-detection`
 
 ## A. SSH key for `ssh jetson` (skip if `ssh jetson 'echo up'` already works)
 
@@ -29,7 +29,7 @@ ssh jetson 'echo up'   # should succeed without a password
 ## B. Clone the repo
 
 ```bash
-cd ~
+mkdir -p ~/projects && cd ~/projects
 git clone https://github.com/Omar-Elshall/soil-crack-detection.git
 cd soil-crack-detection
 git checkout jetson-integration
@@ -40,12 +40,12 @@ git checkout jetson-integration
 In Windows File Explorer, navigate to:
 
 ```
-\\wsl.localhost\Ubuntu\home\<yourwsluser>\soil-crack-detection\jetson\install_laptop_autostart.bat
+\\wsl.localhost\Ubuntu\home\<yourwsluser>\projects\soil-crack-detection\jetson\install_laptop_autostart.bat
 ```
 
 Double-click it. The script:
 
-- Drops a small VBS file into your Windows Startup folder
+- Self-elevates (one UAC prompt) and registers a Scheduled Task that runs the watcher elevated at every Windows logon
 - Starts the watcher immediately (no need to log out)
 
 From now on, every time you log into Windows, the watcher runs invisibly in WSL. When you plug the USB-C cable into the Jetson, the watcher:
