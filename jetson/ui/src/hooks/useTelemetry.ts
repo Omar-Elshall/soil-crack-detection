@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { WS } from "../api/config";
+import { wsUrl, subscribe, getActive, type MavlinkKind } from "../api/mavlinkSource";
 
 export interface StatusMessage {
   text: string;
@@ -10,6 +10,7 @@ export interface StatusMessage {
 
 export interface Telemetry {
   connected: boolean;
+  source: MavlinkKind;     // "radio" | "wifi" — which path the data came from
   lat: number;
   lon: number;
   alt_m: number;
@@ -29,7 +30,8 @@ export interface Telemetry {
 }
 
 const DEFAULT: Telemetry = {
-  connected: false, lat: 0, lon: 0, alt_m: 0,
+  connected: false, source: "wifi",
+  lat: 0, lon: 0, alt_m: 0,
   roll_deg: 0, pitch_deg: 0, yaw_deg: 0, heading_deg: 0,
   battery_pct: 0, battery_v: 0, mode: "—", armed: false,
   gps_fix: 0, north_m: 0, east_m: 0, satellites: 0,
@@ -43,14 +45,22 @@ export function useTelemetry() {
   useEffect(() => {
     let alive = true;
     let retryTimeout: ReturnType<typeof setTimeout>;
+    let currentSourceKind = getActive().kind;
 
     function connect() {
-      const ws = new WebSocket(WS.telemetry);
+      if (!alive) return;
+      try { wsRef.current?.close(); } catch {}
+      const url = wsUrl();
+      currentSourceKind = getActive().kind;
+      const ws = new WebSocket(url);
       wsRef.current = ws;
 
       ws.onmessage = (e) => {
         if (!alive) return;
-        try { setTelem(JSON.parse(e.data)); } catch { /* ignore */ }
+        try {
+          const data = JSON.parse(e.data);
+          setTelem({ ...data, source: currentSourceKind });
+        } catch { /* ignore */ }
       };
       ws.onclose = () => {
         if (alive) retryTimeout = setTimeout(connect, 2000);
@@ -58,10 +68,17 @@ export function useTelemetry() {
       ws.onerror = () => ws.close();
     }
 
+    // Re-open immediately when the active source changes (radio plugged in/out).
+    const unsubscribe = subscribe(() => {
+      clearTimeout(retryTimeout);
+      connect();
+    });
+
     connect();
     return () => {
       alive = false;
       clearTimeout(retryTimeout);
+      unsubscribe();
       wsRef.current?.close();
     };
   }, []);

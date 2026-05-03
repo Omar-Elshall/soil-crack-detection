@@ -75,10 +75,43 @@ To uninstall: double-click `uninstall_laptop_autostart.bat`.
 ```
 1. Plug LiPo onto drone
 2. Wait ~45 s, listen for the rising-arpeggio beep from the drone
-3. Plug USB-C cable to laptop
-4. Browser opens automatically
-5. Demo
+3. Watcher detects Jetson, opens browser
+4. Demo
 ```
+
+## E. Outdoor demo network strategy
+
+The laptop sustains useful WiFi to one network at a time. Recommended:
+
+**Best (simplest):** Both Jetson and laptop on your **phone hotspot**.
+- Phone runs WiFi hotspot
+- Watcher bootstraps Jetson onto it (one-time per venue)
+- Laptop joins same hotspot
+- Zoom + website both work over the same connection
+- Bandwidth: Zoom ~3 Mbps + website ~3-5 Mbps; modern phone hotspot 50+ Mbps
+
+**Alternate (isolated bandwidth):** USB-tether the phone for laptop internet.
+- Plug phone USB into laptop, enable USB tethering
+- Laptop's WiFi adapter is now free
+- Watcher puts Jetson on its own hotspot ("soil-crack-demo")
+- Laptop joins Jetson's hotspot for the website
+- Zoom flows through the phone USB; website through the WiFi
+
+**Backup (no usable phone hotspot):** stick with Jetson hotspot, run Zoom on a teammate's device.
+
+## F. Telemetry radio (SiK) — primary MAVLink path
+
+When the drone flies past the laptop's WiFi range, the camera/UI feed dies. The SiK telemetry radio (USB-A on the laptop, JST-GH on Pixhawk TELEM1) keeps telemetry + flight commands flowing — it reaches hundreds of meters and is bidirectional.
+
+After running `install_laptop_autostart.bat`, the watcher automatically:
+1. Detects the Jetson, opens the browser
+2. Spawns `laptop_mavlink_relay.py` against the radio's COM port (auto-detected: SiLabs / FTDI USB serial)
+3. Hosts the same WS + REST contract as the Jetson MAVLink service on `localhost:18002`
+4. The UI prefers the local relay over the Jetson over WiFi — so commands and live telemetry keep working even when the drone is far from the laptop
+
+Pixhawk firmware needs MAVLink on TELEM1 (one-time, in Mission Planner / QGC):
+- ArduCopter: `SERIAL1_PROTOCOL=2`, `SERIAL1_BAUD=57`
+- PX4: `MAV_1_CONFIG=TELEM1`, `MAV_1_MODE=Normal`, `MAV_1_RATE=auto`
 
 ## If anything goes wrong
 

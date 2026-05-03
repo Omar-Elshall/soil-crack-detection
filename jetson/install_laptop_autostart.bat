@@ -27,7 +27,27 @@ if not exist "%PS1%" (
   pause & exit /b 1
 )
 
-echo Installing scheduled task '%TASK_NAME%' to run the watcher elevated at every logon...
+echo.
+echo === Step 1/3: Setting up Python venv for the MAVLink relay ===
+where python >nul 2>&1
+if %errorlevel% NEQ 0 (
+  echo WARNING: python.exe not in PATH. Install Python 3.10+ from python.org and re-run.
+  echo The watcher will still install but the radio relay won't be able to start.
+  echo.
+) else (
+  set "VENV=%USERPROFILE%\soilcrack-relay-venv"
+  if not exist "%VENV%\Scripts\python.exe" (
+    echo Creating venv at %VENV%
+    python -m venv "%VENV%"
+  )
+  echo Installing relay dependencies (pymavlink, fastapi, uvicorn, pyserial)...
+  "%VENV%\Scripts\python.exe" -m pip install --quiet --upgrade pip
+  "%VENV%\Scripts\python.exe" -m pip install --quiet pymavlink fastapi uvicorn pyserial
+  echo OK.
+)
+
+echo.
+echo === Step 2/3: Registering scheduled task '%TASK_NAME%' ===
 
 :: Delete any existing task with the same name
 schtasks /Delete /TN "%TASK_NAME%" /F >nul 2>&1
@@ -47,7 +67,7 @@ if %errorlevel% NEQ 0 (
 
 echo OK.
 echo.
-echo Starting the watcher now (no need to log out)...
+echo === Step 3/3: Starting the watcher now (no need to log out) ===
 schtasks /Run /TN "%TASK_NAME%" >nul 2>&1
 
 echo.

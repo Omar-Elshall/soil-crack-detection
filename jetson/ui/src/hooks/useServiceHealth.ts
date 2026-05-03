@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { API } from "../api/config";
+import { getActive, subscribe, type MavlinkKind } from "../api/mavlinkSource";
 
 export interface ServiceHealth {
   inference: boolean;
   mavlink: boolean;
+  mavlink_source: MavlinkKind;   // "radio" | "wifi" — which path the dot reflects
   data: boolean;
 }
 
@@ -15,21 +17,25 @@ async function ping(url: string): Promise<boolean> {
 }
 
 export function useServiceHealth(intervalMs = 5000) {
-  const [health, setHealth] = useState<ServiceHealth>({ inference: false, mavlink: false, data: false });
+  const [health, setHealth] = useState<ServiceHealth>({
+    inference: false, mavlink: false, mavlink_source: "wifi", data: false,
+  });
 
   useEffect(() => {
     let alive = true;
     async function check() {
+      const src = getActive();
       const [inference, mavlink, data] = await Promise.all([
         ping(API.inference),
-        ping(API.mavlink),
+        ping(src.base),
         ping(API.data),
       ]);
-      if (alive) setHealth({ inference, mavlink, data });
+      if (alive) setHealth({ inference, mavlink, mavlink_source: src.kind, data });
     }
     check();
+    const unsub = subscribe(() => check());     // re-check immediately on source change
     const id = setInterval(check, intervalMs);
-    return () => { alive = false; clearInterval(id); };
+    return () => { alive = false; clearInterval(id); unsub(); };
   }, [intervalMs]);
 
   return health;

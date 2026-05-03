@@ -63,7 +63,7 @@ export function StatusBar({ statusMessages = [], armed = false, mode }: Props) {
         </div>
         <div className="flex items-center gap-4">
           <Dot ok={health.inference} label="Camera" />
-          <Dot ok={health.mavlink}   label="MAVLink" />
+          <Dot ok={health.mavlink}   label={health.mavlink_source === "radio" ? "MAVLink·radio" : "MAVLink·wifi"} />
           <Dot ok={health.data}      label="Data" />
         </div>
       </div>

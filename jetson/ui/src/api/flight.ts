@@ -1,7 +1,11 @@
-import { API } from "./config";
+import { getActive } from "./mavlinkSource";
 
+// All command POSTs go to whichever MAVLink source is currently active —
+// radio relay (preferred) or Jetson WiFi (fallback). Resolved per-call so
+// commands fire over the right path even if the source changed mid-session.
 async function cmd(action: string, body?: object): Promise<{ ok: boolean; message: string }> {
-  const r = await fetch(`${API.mavlink}/command/${action}`, {
+  const base = getActive().base;
+  const r = await fetch(`${base}/command/${action}`, {
     method: "POST",
     headers: body ? { "Content-Type": "application/json" } : {},
     body: body ? JSON.stringify(body) : undefined,
@@ -26,6 +30,6 @@ export const startMission   = () => cmd("start-mission");
 // Sequenced demo flight: GUIDED -> ARM -> takeoff -> hover -> LAND -> disarm.
 // Backend handles timing; UI just awaits the final response.
 export const demoFlight     = (altitude_m = 1.0, hover_seconds = 30.0) =>
-  fetch(`${API.mavlink}/command/demo-flight?altitude_m=${altitude_m}&hover_seconds=${hover_seconds}`, {
+  fetch(`${getActive().base}/command/demo-flight?altitude_m=${altitude_m}&hover_seconds=${hover_seconds}`, {
     method: "POST",
   }).then((r) => r.json());
