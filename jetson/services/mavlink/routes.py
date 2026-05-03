@@ -21,6 +21,26 @@ router = APIRouter()
 # Injected by main.py at startup
 poller = None
 flight = None
+conn = None
+
+
+@router.post("/command/play-tone")
+async def play_tone(tune: str = "MFT200L8>cdefg"):
+    """Send a PLAY_TUNE message to the Pixhawk's onboard buzzer.
+    Default is a quick rising arpeggio (~0.4 s). Used as the audible
+    'all services up' signal at the end of demo_start.sh and on boot.
+    """
+    if conn is None or not getattr(conn, "connected", False) or conn.master is None:
+        return {"ok": False, "error": "Pixhawk not connected"}
+    try:
+        conn.master.mav.play_tune_send(
+            conn.master.target_system,
+            conn.master.target_component,
+            tune.encode("ascii", errors="ignore"),
+        )
+        return {"ok": True, "tune": tune}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 
 class GotoBody(BaseModel):

@@ -13,8 +13,24 @@ from torchvision import transforms
 
 from crack_detection.models.efficientcracknet import EfficientCrackNet
 
+import re
+
 DEFAULT_TRT_PATH = "results/efficientcracknet_fp16.trt"
 DEFAULT_PT_PATH  = "results/saved_models/EfficientCrackNet/best_model_num_real_4.pt"
+
+
+def _derive_trt_path(model_path: str) -> str:
+    """Map a checkpoint path to its matching TRT engine path.
+    `best_model_num_real_4.pt` -> `results/efficientcracknet_real4_fp16.trt`
+    Falls back to DEFAULT_TRT_PATH if the name doesn't match the convention.
+    """
+    base = os.path.basename(model_path or "")
+    m = re.search(r"real_?(\d+)", base)
+    if m:
+        return f"results/efficientcracknet_real{m.group(1)}_fp16.trt"
+    return DEFAULT_TRT_PATH
+
+
 # real_6 has higher held-out F1 (0.83) but is much more conservative on the
 # live camera feed — it under-predicts on real-world frames at demo distance
 # and the on-screen detection is sparse. real_4 is slightly less precise on

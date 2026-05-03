@@ -51,6 +51,7 @@ async def startup():
     # Inject into routes module
     _routes.poller = _poller
     _routes.flight = _flight
+    _routes.conn = _conn
 
     print("MAVLink service ready.")
 

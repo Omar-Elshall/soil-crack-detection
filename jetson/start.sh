@@ -59,6 +59,11 @@ fi
 echo ""
 echo "All services started. Press Ctrl+C to stop."
 echo ""
+
+# Audible "everything is up" tone — fires once all 4 endpoints respond.
+# Backgrounded so start.sh isn't blocked. Safe to run on boot too.
+( bash "$ROOT/jetson/play_ready_tone.sh" > /tmp/ready-tone.log 2>&1 ) &
+
 echo "  Live UI:   http://$(hostname -I | awk '{print $1}'):5173"
 echo "  Inference: http://$(hostname -I | awk '{print $1}'):8001"
 echo "  MAVLink:   http://$(hostname -I | awk '{print $1}'):8002"

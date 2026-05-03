@@ -40,10 +40,12 @@ echo
 echo "[1/4] Creating hotspot..."
 sudo nmcli device wifi hotspot ifname "$WIFI_IFACE" ssid "$SSID" password "$PASSWORD"
 
-# 2. Make it auto-start on boot, top priority.
-echo "[2/4] Setting auto-connect on boot..."
+# 2. Make it auto-start on boot AS A FALLBACK (low priority so a known
+# regular WiFi wins when reachable; hotspot only kicks in when nothing
+# else is available).
+echo "[2/4] Setting auto-connect on boot (low priority — fallback only)..."
 sudo nmcli connection modify Hotspot connection.autoconnect yes
-sudo nmcli connection modify Hotspot connection.autoconnect-priority 100
+sudo nmcli connection modify Hotspot connection.autoconnect-priority 1
 
 # 3. Install avahi (mDNS) so the laptop can also reach us by hostname.
 echo "[3/4] Ensuring mDNS (avahi-daemon) is installed and running..."
