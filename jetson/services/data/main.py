@@ -17,6 +17,11 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 app.include_router(_routes.router)
 
 
+@app.get("/status")
+async def status():
+    return {"ok": True, "service": "data"}
+
+
 @app.on_event("startup")
 async def startup():
     print("Data service ready.")

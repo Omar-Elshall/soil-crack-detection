@@ -53,23 +53,32 @@ def build_overlay(frame_bgr: np.ndarray, mask: np.ndarray, crack_ratio: float, f
     if not CV2_AVAILABLE:
         return frame_bgr
     overlay = frame_bgr.copy()
-    colored = np.zeros_like(frame_bgr)
-    colored[mask > 127] = (46, 98, 196)   # terracotta in BGR: #C4622D → BGR (46, 98, 196)
-    overlay = cv2.addWeighted(overlay, 0.55, colored, 0.45, 0)
-
+    # Only blend masked pixels — the previous addWeighted blended every pixel
+    # with the zero-filled `colored` array, so unmasked pixels were multiplied
+    # by 0.55 and the whole frame looked darkened/desaturated.
+    bm = mask > 127
+    if bm.any():
+        terracotta = np.array([46, 98, 196], dtype=np.float32)  # BGR for #C4622D
+        overlay[bm] = (overlay[bm].astype(np.float32) * 0.55 + terracotta * 0.45).astype(np.uint8)
     return overlay
 
 
 def mjpeg_generator(jpeg_quality: int = 80):
-    """Yields MJPEG multipart frames. One generator per client connection."""
-    boundary = b"--frame\r\nContent-Type: image/jpeg\r\n\r\n"
+    """Yields motion-PNG multipart frames. One generator per client connection.
+
+    Switched from JPEG to PNG: at 512×512 the JPEG chroma subsampling smudged
+    the red overlay pixels into the surrounding image. PNG is lossless and the
+    payload is still ~50–150 kB per frame at 3–5 FPS, well within WiFi.
+    """
+    boundary = b"--frame\r\nContent-Type: image/png\r\n\r\n"
     while True:
         frame, _, _ = state.snapshot()
         if frame is None:
             time.sleep(0.05)
             continue
         if CV2_AVAILABLE:
-            ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality])
+            # PNG compression level 1 = fastest, near-lossless deflate; 9 = max compression
+            ok, buf = cv2.imencode(".png", frame, [cv2.IMWRITE_PNG_COMPRESSION, 1])
             if not ok:
                 continue
             yield boundary + buf.tobytes() + b"\r\n"

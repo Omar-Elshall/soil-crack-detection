@@ -14,8 +14,18 @@ from torchvision import transforms
 from crack_detection.models.efficientcracknet import EfficientCrackNet
 
 DEFAULT_TRT_PATH = "results/efficientcracknet_fp16.trt"
-DEFAULT_PT_PATH  = "results/saved_models/EfficientCrackNet/best_model_num_real_6.pt"
-CRACK_THRESHOLD  = 0.5
+DEFAULT_PT_PATH  = "results/saved_models/EfficientCrackNet/best_model_num_real_4.pt"
+# real_6 has higher held-out F1 (0.83) but is much more conservative on the
+# live camera feed — it under-predicts on real-world frames at demo distance
+# and the on-screen detection is sparse. real_4 is slightly less precise on
+# the test set but visually matches what a human marks as crack on the live
+# feed, so it's the better deployment checkpoint.
+CRACK_THRESHOLD  = float(os.environ.get("CRACK_THRESHOLD", "0.5"))
+# Lower this (e.g. 0.30) to make a conservative checkpoint detect more pixels.
+# real_6's sigmoid output is well-calibrated on the test distribution but
+# undershoots 0.5 on the live camera feed — set CRACK_THRESHOLD=0.30 when
+# running real_6 to recover the visual density of detections that real_4
+# produces by default.
 
 TRANSFORM = transforms.Compose([
     transforms.ToPILImage(),
