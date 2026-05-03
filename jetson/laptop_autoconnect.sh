@@ -85,10 +85,22 @@ bootstrap_via_hotspot() {
   fi
   echo "    Laptop is on: $(c_g "$current_ssid")"
 
-  # Try to read password without admin (works for personal profiles owned by user).
-  current_pass=$(powershell.exe -NoProfile -Command "(netsh wlan show profile name=\\\"$current_ssid\\\" key=clear | Select-String 'Key Content').Line.Split(':')[1].Trim()" 2>/dev/null | tr -d '\r\n')
+  # Cache file: store {SSID, password} so we never have to ask twice.
+  local cache_dir="$HOME/.cache/laptop_autoconnect"
+  local cache_file="$cache_dir/$(echo -n "$current_ssid" | sha256sum | cut -c1-16)"
+  mkdir -p "$cache_dir" && chmod 700 "$cache_dir"
+
+  # Try cache first (this avoids the prompt on every run)
+  if [ -f "$cache_file" ]; then
+    current_pass=$(cat "$cache_file" 2>/dev/null)
+  fi
+  # Then try netsh (works for personal profiles or with admin)
   if [ -z "$current_pass" ]; then
-    echo -n "    Need WiFi password for '$current_ssid' (admin would auto-fill): "
+    current_pass=$(powershell.exe -NoProfile -Command "(netsh wlan show profile name=\\\"$current_ssid\\\" key=clear | Select-String 'Key Content').Line.Split(':')[1].Trim()" 2>/dev/null | tr -d '\r\n')
+  fi
+  # Last resort: prompt the user. We cache after success so this is a one-time ask.
+  if [ -z "$current_pass" ]; then
+    echo -n "    First-time only — WiFi password for '$current_ssid': "
     read -s current_pass
     echo
     if [ -z "$current_pass" ]; then
@@ -96,6 +108,8 @@ bootstrap_via_hotspot() {
       return 1
     fi
   fi
+  # Cache it for next time (chmod 600 so only this user can read)
+  echo -n "$current_pass" > "$cache_file" && chmod 600 "$cache_file"
 
   # Force-delete any existing Windows profile so we always re-create it as
   # connectionMode=manual (older versions of this script created it as auto,
