@@ -32,11 +32,19 @@ $BOOTSTRAP_COOLDOWN  = 90
 
 $SSH_EXE = "C:\Windows\System32\OpenSSH\ssh.exe"
 if (-not (Test-Path $SSH_EXE)) { $SSH_EXE = "ssh.exe" }
+$SSH_KEY = Join-Path $env:USERPROFILE ".ssh\jetson_nano"
 
 # --- Helpers ---------------------------------------------------------------
 function Win-Ssh {
     param([string]$Target, [string]$Cmd)
-    & $SSH_EXE -o ConnectTimeout=2 -o BatchMode=yes -o StrictHostKeyChecking=no $Target $Cmd *>$null
+    # If target is the 'jetson' alias, rely on ~/.ssh/config IdentityFile.
+    # Otherwise (raw IP/hostname) pass the key explicitly so ssh knows what
+    # to authenticate with.
+    if ($Target -eq "jetson") {
+        & $SSH_EXE -o ConnectTimeout=2 -o BatchMode=yes -o StrictHostKeyChecking=no $Target $Cmd *>$null
+    } else {
+        & $SSH_EXE -i $SSH_KEY -o ConnectTimeout=2 -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL $Target $Cmd *>$null
+    }
     return ($LASTEXITCODE -eq 0)
 }
 
@@ -133,7 +141,7 @@ function Bootstrap-ViaHotspot {
 sudo nmcli connection modify Hotspot connection.autoconnect-priority 1 2>/dev/null; nohup sudo bash -c 'sleep 4 && nmcli device wifi connect "@@SSID@@" password "@@PASS@@"' > /tmp/wifi-share.log 2>&1 & disown; exit 0
 '@
     $pushCmd = $bashTemplate.Replace('@@SSID@@', $ssid).Replace('@@PASS@@', $pass)
-    & $SSH_EXE -o BatchMode=yes -o StrictHostKeyChecking=no "$SSH_USER@$JETSON_HOTSPOT_IP" $pushCmd *>$null
+    & $SSH_EXE -i $SSH_KEY -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL "$SSH_USER@$JETSON_HOTSPOT_IP" $pushCmd *>$null
 
     Write-Host "    Switching laptop back -> $ssid"
     Start-Sleep -Seconds 4
