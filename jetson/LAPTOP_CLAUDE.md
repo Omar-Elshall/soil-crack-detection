@@ -26,6 +26,24 @@ If the user ever reports `soilcrack.local` won't load:
 - mDNS still up? `ssh jetson 'systemctl is-active avahi-daemon'`
 - Some corporate networks block multicast — fall back to the IP (`ssh jetson 'hostname -I'`).
 
+## Most-streamlined demo flow (battery + cable, nothing else)
+
+User just plugs in the LiPo + USB-C cable; everything else is automatic:
+
+1. Power on Jetson (LiPo) → systemd brings up all 4 services
+2. Plug USB-C cable → laptop's `laptop_autoconnect.sh` (running in any WSL terminal) detects the Jetson at 192.168.55.1
+3. The script (best-effort, requires admin) shares the laptop's current WiFi SSID + password to the Jetson via SSH + nmcli
+4. The script opens the browser to `http://soilcrack.local:5173`
+5. Once all 4 services respond, Pixhawk plays the ready-tone (audible "you can demo now")
+
+To run the laptop watcher:
+```bash
+bash jetson/laptop_autoconnect.sh
+```
+Leave it running in a terminal. Each cable replug triggers the same flow.
+
+If WiFi sharing fails (no admin → `netsh wlan show profile key=clear` is denied), the script just opens the browser; the Jetson stays on whatever WiFi it auto-joined (or hotspot fallback).
+
 ## Connecting the Jetson to a new WiFi (e.g. demo location)
 
 ```bash
