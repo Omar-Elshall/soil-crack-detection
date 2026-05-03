@@ -1,62 +1,62 @@
 @echo off
-:: install_laptop_autostart.bat — Run ONCE on the demo laptop.
-:: Installs a Windows autostart entry that launches laptop_autoconnect.sh
-:: invisibly inside WSL on every login. No terminal window opens.
+:: install_laptop_autostart.bat — RUN ONCE.
 ::
-:: Usage:
-::   1. Open this file in File Explorer and double-click, OR
-::   2. From cmd: install_laptop_autostart.bat
+:: 1. Self-elevates (one UAC prompt — accept it)
+:: 2. Registers a Scheduled Task that runs the elevated PowerShell watcher
+::    on every Windows logon. No further prompts ever.
+:: 3. Starts the watcher immediately so you don't have to log out.
 ::
-:: To uninstall, delete the .vbs file from the Startup folder shown below.
+:: Watcher script: %~dp0laptop_autoconnect.ps1
 
 setlocal
 
-:: WSL path to the watcher script (relative to wherever the user cloned the repo)
-:: Edit REPO_PATH below if your clone lives somewhere else.
-set "REPO_PATH=~/soil-crack-detection"
-set "WATCHER=%REPO_PATH%/jetson/laptop_autoconnect.sh"
+set "SCRIPT_DIR=%~dp0"
+set "PS1=%SCRIPT_DIR%laptop_autoconnect.ps1"
+set "TASK_NAME=SoilCrackAutoConnect"
 
-:: ── Sanity checks ────────────────────────────────────────────────────────────
-echo Sanity check: WSL interop + script presence
-where wsl.exe >nul 2>&1 || (
-  echo ERROR: wsl.exe not found in PATH. Is WSL2 installed?
+:: Self-elevate
+net session >nul 2>&1
+if %errorlevel% NEQ 0 (
+  echo Requesting admin (UAC prompt^)...
+  powershell -Command "Start-Process -Verb RunAs -FilePath '%~f0'"
+  exit /b 0
+)
+
+if not exist "%PS1%" (
+  echo ERROR: %PS1% not found.
   pause & exit /b 1
 )
-wsl.exe -e bash -c "test -f %WATCHER%" || (
-  echo ERROR: Cannot find %WATCHER% in WSL.
-  echo Make sure the repo is cloned at ~/soil-crack-detection inside WSL.
-  echo Or edit REPO_PATH at the top of this .bat file.
+
+echo Installing scheduled task '%TASK_NAME%' to run the watcher elevated at every logon...
+
+:: Delete any existing task with the same name
+schtasks /Delete /TN "%TASK_NAME%" /F >nul 2>&1
+
+:: Create scheduled task: at logon, highest privileges, run hidden
+schtasks /Create ^
+  /TN "%TASK_NAME%" ^
+  /SC ONLOGON ^
+  /RL HIGHEST ^
+  /TR "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"%PS1%\"" ^
+  /F >nul
+
+if %errorlevel% NEQ 0 (
+  echo ERROR: Failed to register scheduled task.
   pause & exit /b 1
 )
-echo OK
+
+echo OK.
 echo.
+echo Starting the watcher now (no need to log out)...
+schtasks /Run /TN "%TASK_NAME%" >nul 2>&1
 
-:: Windows Startup folder
-set "STARTUP_DIR=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
-set "VBS_FILE=%STARTUP_DIR%\soil-crack-autoconnect.vbs"
-
-echo Installing autostart entry...
-echo   Repo (in WSL): %REPO_PATH%
-echo   Startup file:  %VBS_FILE%
 echo.
-
-:: Write a tiny VBS that runs WSL invisibly. The 0 in WshShell.Run hides the window.
-> "%VBS_FILE%" echo Set WshShell = CreateObject("WScript.Shell")
->>"%VBS_FILE%" echo WshShell.Run "wsl.exe -e bash -c ""bash %WATCHER% ^>^> /tmp/laptop_autoconnect.log 2^>^&1""", 0, False
-
-if exist "%VBS_FILE%" (
-  echo.
-  echo Done. The watcher will start automatically on every Windows login.
-  echo Logs: in WSL run 'tail -f /tmp/laptop_autoconnect.log'
-  echo.
-  echo Starting it now so you don't have to log out and back in...
-  cscript //nologo "%VBS_FILE%"
-  echo.
-  echo Watcher is running in the background. Plug the USB-C cable into the
-  echo Jetson and the browser will open + WiFi creds will be shared.
-) else (
-  echo ERROR: Could not write %VBS_FILE%. Check permissions.
-  exit /b 1
-)
-
+echo Done. From now on, the watcher launches at every Windows logon.
+echo It runs in the background — no terminal window opens.
+echo.
+echo To check it's running:
+echo   tasklist ^| findstr powershell
+echo To remove the autostart:
+echo   schtasks /Delete /TN "%TASK_NAME%" /F
+echo.
 pause
