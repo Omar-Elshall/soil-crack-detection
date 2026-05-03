@@ -1,131 +1,219 @@
 #!/usr/bin/env bash
-# laptop_autoconnect.sh — Run this on the laptop's WSL.
-# Watches for the Jetson over USB ethernet (192.168.55.1). When the cable is
-# plugged in:
-#   1. (best-effort) reads the laptop's current WiFi creds from Windows and
-#      tells the Jetson to join that WiFi
-#   2. opens the browser to http://soilcrack.local:5173
-# When the cable is unplugged, returns to watching.
+# laptop_autoconnect.sh — One script. Run it once. Leave it running.
+#
+# It does ALL of these automatically:
+#   1. Probes the Jetson on every shared network (USB, jetson alias, mDNS)
+#   2. If unreachable: assumes the Jetson is in hotspot fallback at the
+#      venue. Reads laptop's current WiFi creds, briefly switches laptop to
+#      the Jetson's hotspot, SSHs to the Jetson, runs nmcli to add the
+#      laptop's WiFi, switches laptop back. Updates ~/.ssh/config so 'ssh
+#      jetson' tracks the new IP.
+#   3. Once Jetson is reachable, opens browser to the live UI.
 #
 # Usage:
 #   bash jetson/laptop_autoconnect.sh
 #
-# Leave it running in a terminal. Ctrl+C to stop.
-#
-# Prereqs on the laptop:
-#   - WSL with `ssh` configured (key auth to Jetson at 192.168.55.1)
-#   - Windows PowerShell + WSL interop (the script calls powershell.exe)
-#   - cmd.exe accessible from PATH (for opening browser)
-#
-# Note on WiFi sharing: reading the WiFi password from Windows requires
-# admin privileges (`netsh wlan show profile name=X key=clear`). If the
-# script can't read the password, it just opens the browser and leaves the
-# Jetson on whichever WiFi it auto-joined.
+# Leave running in a WSL terminal. Reading WiFi password requires admin
+# WSL/PowerShell; without it, the script prompts interactively once per
+# bootstrap attempt.
+
+set -u
 
 SSH_USER="${SSH_USER:-sdp-w-nano}"
-
-# Targets to probe, in priority order:
-#   1. 192.168.55.1   — USB ethernet gadget (works on dev kits with the device-
-#                       mode port broken out; doesn't work on most flight carriers
-#                       like Holybro that don't expose that port externally)
-#   2. soilcrack.local — mDNS over whatever WiFi both devices share
-#   3. (env override) JETSON_HOST                 — explicit host
-TARGETS=("${JETSON_HOST:-}" "192.168.55.1" "jetson" "soilcrack.local")
-URL_DEFAULT="http://soilcrack.local:5173"
-# Note: 'jetson' is an SSH config alias that points at the Jetson's current
-# WiFi IP. soilcrack.local works from the Windows-side browser (Bonjour) but
-# not from inside WSL (no mDNS). The 'jetson' alias bridges the gap.
+JETSON_HOTSPOT_SSID="${JETSON_HOTSPOT_SSID:-soil-crack-demo}"
+JETSON_HOTSPOT_PASS="${JETSON_HOTSPOT_PASS:-cracksoil2026}"
+JETSON_HOTSPOT_IP="${JETSON_HOTSPOT_IP:-10.42.0.1}"
+URL_DEFAULT="${URL_DEFAULT:-http://soilcrack.local:5173}"
+BOOTSTRAP_COOLDOWN_SECS="${BOOTSTRAP_COOLDOWN_SECS:-90}"
 
 c_g() { printf "\033[32m%s\033[0m" "$*"; }
 c_y() { printf "\033[33m%s\033[0m" "$*"; }
-c_d() { printf "\033[2m%s\033[0m" "$*"; }
+c_r() { printf "\033[31m%s\033[0m" "$*"; }
+c_d() { printf "\033[2m%s\033[0m"  "$*"; }
 
-echo "==> Watching for Jetson — tries USB cable (192.168.55.1) then WiFi (soilcrack.local)"
-echo "    On detect: pull latest repo + (best-effort) share WiFi creds + open browser"
-echo "    Ctrl+C to stop"
-echo
+# Probe order. First reachable target wins.
+TARGETS=("${JETSON_HOST:-}" "192.168.55.1" "jetson" "soilcrack.local")
 
-# Pull latest on startup so the laptop's clone of demo scripts stays current.
-# Soft-fails so a missing internet connection doesn't kill the watcher.
+probe() {
+  for h in "${TARGETS[@]}"; do
+    [ -z "$h" ] && continue
+    if [ "$h" = "jetson" ]; then
+      ssh -o ConnectTimeout=2 -o BatchMode=yes "$h" 'echo up' >/dev/null 2>&1 && { echo "$h"; return 0; }
+    else
+      ssh -o ConnectTimeout=2 -o BatchMode=yes "$SSH_USER@$h" 'echo up' >/dev/null 2>&1 && { echo "$h"; return 0; }
+    fi
+  done
+  return 1
+}
+
+open_browser() {
+  local url="$1"
+  if command -v cmd.exe >/dev/null 2>&1; then
+    cmd.exe /c start "" "$url" 2>/dev/null && return 0
+  fi
+  if command -v powershell.exe >/dev/null 2>&1; then
+    powershell.exe -NoProfile -Command "Start-Process '$url'" 2>/dev/null && return 0
+  fi
+  return 1
+}
+
+# Pull latest scripts. Soft-fail (no internet, key issue, whatever).
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+echo "==> Auto-onboard watcher"
+echo "    Detect Jetson, bootstrap WiFi if needed, open browser. Ctrl+C to stop."
+echo
 if [ -d "$REPO_DIR/.git" ]; then
-  echo "[$(date +%H:%M:%S)] $(c_d 'pulling latest scripts...')"
-  ( cd "$REPO_DIR" && git pull --ff-only 2>&1 | tail -3 ) || true
+  echo "[$(date +%H:%M:%S)] $(c_d 'pulling latest scripts (best-effort)...')"
+  ( cd "$REPO_DIR" && git pull --ff-only --quiet 2>&1 ) || echo "    $(c_d '(pull skipped/failed — keeping current)')"
 fi
 echo
 
-was_up=0
-detected_host=""
-while :; do
-  detected_host=""
-  for h in "${TARGETS[@]}"; do
-    [ -z "$h" ] && continue
-    # The 'jetson' alias uses ~/.ssh/config and ignores the User in URL form;
-    # try it as a bare alias, others as user@host.
-    if [ "$h" = "jetson" ]; then
-      ssh -o ConnectTimeout=2 -o BatchMode=yes "$h" 'echo up' >/dev/null 2>&1 && { detected_host="$h"; break; }
-    else
-      ssh -o ConnectTimeout=2 -o BatchMode=yes "$SSH_USER@$h" 'echo up' >/dev/null 2>&1 && { detected_host="$h"; break; }
+bootstrap_via_hotspot() {
+  echo "[$(date +%H:%M:%S)] $(c_y 'Jetson unreachable on shared WiFi') — bootstrapping via hotspot"
+
+  if ! command -v powershell.exe >/dev/null 2>&1; then
+    echo "    $(c_r 'WSL interop broken') — cannot drive netsh."
+    echo "    Manual: bash jetson/share_wifi_with_jetson.sh"
+    return 1
+  fi
+
+  local current_ssid current_pass
+  current_ssid=$(powershell.exe -NoProfile -Command "(Get-NetConnectionProfile | Where-Object {\$_.IPv4Connectivity -eq 'Internet'} | Select-Object -First 1).Name" 2>/dev/null | tr -d '\r\n ')
+  if [ -z "$current_ssid" ]; then
+    echo "    $(c_y 'No internet WiFi found on laptop. Skipping bootstrap.')"
+    return 1
+  fi
+  echo "    Laptop is on: $(c_g "$current_ssid")"
+
+  # Try to read password without admin (works for personal profiles owned by user).
+  current_pass=$(powershell.exe -NoProfile -Command "(netsh wlan show profile name=\\\"$current_ssid\\\" key=clear | Select-String 'Key Content').Line.Split(':')[1].Trim()" 2>/dev/null | tr -d '\r\n')
+  if [ -z "$current_pass" ]; then
+    echo -n "    Need WiFi password for '$current_ssid' (admin would auto-fill): "
+    read -s current_pass
+    echo
+    if [ -z "$current_pass" ]; then
+      echo "    $(c_r 'No password — abort bootstrap')"
+      return 1
+    fi
+  fi
+
+  # Add the Jetson hotspot WiFi profile if missing
+  local profiles
+  profiles=$(powershell.exe -NoProfile -Command "netsh wlan show profiles" 2>/dev/null | tr -d '\r')
+  if ! echo "$profiles" | grep -q "$JETSON_HOTSPOT_SSID"; then
+    echo "    $(c_d "Adding '$JETSON_HOTSPOT_SSID' profile to Windows...")"
+    local tmpxml win_tmp
+    tmpxml=$(mktemp --suffix=.xml)
+    cat > "$tmpxml" <<XML
+<?xml version="1.0"?>
+<WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1">
+<name>$JETSON_HOTSPOT_SSID</name>
+<SSIDConfig><SSID><name>$JETSON_HOTSPOT_SSID</name></SSID></SSIDConfig>
+<connectionType>ESS</connectionType><connectionMode>auto</connectionMode>
+<MSM><security>
+<authEncryption><authentication>WPA2PSK</authentication><encryption>AES</encryption><useOneX>false</useOneX></authEncryption>
+<sharedKey><keyType>passPhrase</keyType><protected>false</protected><keyMaterial>$JETSON_HOTSPOT_PASS</keyMaterial></sharedKey>
+</security></MSM>
+</WLANProfile>
+XML
+    win_tmp=$(wslpath -w "$tmpxml")
+    powershell.exe -NoProfile -Command "netsh wlan add profile filename='$win_tmp'" >/dev/null 2>&1
+    rm -f "$tmpxml"
+  fi
+
+  echo "    Switching laptop → $(c_d "$JETSON_HOTSPOT_SSID")"
+  powershell.exe -NoProfile -Command "netsh wlan connect name='$JETSON_HOTSPOT_SSID'" >/dev/null 2>&1
+
+  # Wait for Jetson to be reachable on hotspot
+  local i
+  for i in $(seq 1 15); do
+    sleep 2
+    ssh -o ConnectTimeout=2 -o BatchMode=yes "$SSH_USER@$JETSON_HOTSPOT_IP" 'echo up' >/dev/null 2>&1 && break
+    if [ "$i" = "15" ]; then
+      echo "    $(c_r 'Could not reach Jetson on hotspot') — restoring laptop WiFi"
+      powershell.exe -NoProfile -Command "netsh wlan connect name='$current_ssid'" >/dev/null 2>&1
+      return 1
     fi
   done
-  if [ -n "$detected_host" ]; then
+  echo "    Reached Jetson on hotspot. Pushing creds..."
+
+  ssh "$SSH_USER@$JETSON_HOTSPOT_IP" "
+    sudo nmcli connection modify Hotspot connection.autoconnect-priority 1 2>/dev/null
+    nohup sudo bash -c 'sleep 4 && nmcli device wifi connect \"$current_ssid\" password \"$current_pass\"' > /tmp/wifi-share.log 2>&1 &
+    disown
+    exit 0
+  " 2>/dev/null
+
+  echo "    Switching laptop back → $(c_d "$current_ssid")"
+  sleep 4
+  powershell.exe -NoProfile -Command "netsh wlan connect name='$current_ssid'" >/dev/null 2>&1
+
+  # Resolve Jetson's new IP via Bonjour and update ~/.ssh/config
+  local new_ip=""
+  for i in $(seq 1 15); do
+    sleep 3
+    new_ip=$(powershell.exe -NoProfile -Command "(Resolve-DnsName -Name 'soilcrack.local' -ErrorAction SilentlyContinue | Where-Object {\$_.Type -eq 'A'} | Select-Object -First 1).IPAddress" 2>/dev/null | tr -d '\r\n ')
+    if [ -n "$new_ip" ] && ssh -o ConnectTimeout=3 -o BatchMode=yes "$SSH_USER@$new_ip" 'echo up' >/dev/null 2>&1; then
+      break
+    fi
+    new_ip=""
+  done
+
+  if [ -n "$new_ip" ]; then
+    echo "    Jetson is at $(c_g "$new_ip")"
+    local cfg=~/.ssh/config
+    if grep -q "^Host jetson$" "$cfg" 2>/dev/null; then
+      sed -i "/^Host jetson$/,/^Host /{s/^[[:space:]]*HostName .*/\tHostName $new_ip/}" "$cfg"
+    else
+      mkdir -p ~/.ssh && chmod 700 ~/.ssh
+      cat >> "$cfg" <<EOF
+
+Host jetson
+	HostName $new_ip
+	User $SSH_USER
+	IdentityFile ~/.ssh/jetson_nano
+EOF
+      chmod 600 "$cfg"
+    fi
+    echo "    Updated ~/.ssh/config — $(c_g "'ssh jetson' now points at $new_ip")"
+    return 0
+  else
+    echo "    $(c_y 'Bootstrap incomplete — Jetson not visible on shared WiFi yet')"
+    return 1
+  fi
+}
+
+# Main loop
+last_bootstrap=0
+was_up=0
+URL=""
+while :; do
+  detected=$(probe || true)
+  if [ -n "$detected" ]; then
     if [ "$was_up" = "0" ]; then
-      echo "[$(date +%H:%M:%S)] $(c_g 'Jetson detected') via $detected_host"
-      # If we detected via USB ethernet, prefer the IP URL (no mDNS dependency).
-      # Over WiFi, use mDNS URL.
-      if [ "$detected_host" = "192.168.55.1" ]; then
-        URL="${URL:-http://192.168.55.1:5173}"
+      echo "[$(date +%H:%M:%S)] $(c_g 'Jetson detected') via $detected"
+      if [ "$detected" = "192.168.55.1" ]; then
+        URL="http://192.168.55.1:5173"
       else
-        URL="${URL:-$URL_DEFAULT}"   # mDNS — Windows browser handles this
+        URL="$URL_DEFAULT"
       fi
-
-      # ── Best-effort WiFi credential sharing ──────────────────────────────
-      ssid=""
-      key=""
-      if command -v powershell.exe >/dev/null 2>&1; then
-        ssid=$(powershell.exe -NoProfile -Command "(Get-NetConnectionProfile | Where-Object {\$_.IPv4Connectivity -eq 'Internet'} | Select-Object -First 1).Name" 2>/dev/null | tr -d '\r\n ')
-        if [ -n "$ssid" ]; then
-          # netsh wlan show profile reveals the key for known networks; admin needed.
-          key=$(powershell.exe -NoProfile -Command "(netsh wlan show profile name=\\\"$ssid\\\" key=clear | Select-String 'Key Content').Line.Split(':')[1].Trim()" 2>/dev/null | tr -d '\r\n')
-        fi
-      fi
-
-      if [ -n "$ssid" ] && [ -n "$key" ]; then
-        echo "    Sharing WiFi creds: SSID=$(c_d "$ssid")"
-        SSH_TARGET="$detected_host"
-        [ "$detected_host" != "jetson" ] && SSH_TARGET="$SSH_USER@$detected_host"
-        ssh "$SSH_TARGET" "
-          sudo nmcli connection modify Hotspot connection.autoconnect no 2>/dev/null
-          sudo nmcli connection down Hotspot 2>/dev/null
-          # Use & + nohup so SSH session returns even if WiFi switch drops other links
-          nohup sudo bash -c 'nmcli device wifi connect \"$ssid\" password \"$key\"' > /tmp/wifi-autoconnect.log 2>&1 &
-          disown
-          exit 0
-        " 2>/dev/null
-        echo "    $(c_g 'WiFi join attempted') — Jetson now also reachable via $URL"
-      else
-        if [ -z "$ssid" ]; then
-          echo "    $(c_y 'WiFi share skipped'): no internet-connected WiFi found"
-        else
-          echo "    $(c_y 'WiFi share skipped'): could not read password (run WSL/PowerShell as admin to enable)"
-          echo "    SSID=$(c_d "$ssid") found, but key required admin"
-        fi
-      fi
-
-      # ── Open browser ─────────────────────────────────────────────────────
-      if command -v cmd.exe >/dev/null 2>&1; then
-        cmd.exe /c start "" "$URL" >/dev/null 2>&1
+      if open_browser "$URL"; then
         echo "    $(c_g 'Browser opened') → $URL"
       else
-        echo "    Open this URL manually: $(c_y "$URL")"
+        echo "    $(c_y 'Browser open failed') — open manually: $URL"
       fi
-
       was_up=1
     fi
   else
     if [ "$was_up" = "1" ]; then
       echo "[$(date +%H:%M:%S)] $(c_y 'Jetson unreachable')"
       was_up=0
+    fi
+    # Bootstrap if cooldown elapsed
+    now=$(date +%s)
+    if [ $((now - last_bootstrap)) -ge "$BOOTSTRAP_COOLDOWN_SECS" ]; then
+      last_bootstrap=$now
+      bootstrap_via_hotspot || true
     fi
   fi
   sleep 3
