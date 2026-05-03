@@ -84,6 +84,54 @@ Threshold = **0.10%** chosen as the highest value that still retains ≥ 90% of 
 
 ---
 
+## Network: no external WiFi needed (Jetson is its own AP)
+
+The Jetson can broadcast its own WiFi network so the laptop reaches it without depending on any infrastructure. This makes the demo portable and removes the "what's the WiFi here?" failure mode.
+
+**One-time setup, on the Jetson:**
+
+```bash
+ssh jetson 'cd ~/soil-crack-detection && bash jetson/setup_hotspot.sh'
+```
+
+After that, the Jetson:
+- Broadcasts SSID `soil-crack-demo` (password `cracksoil2026`)
+- Has IP `10.42.0.1` on that network
+- Auto-starts the hotspot on every boot
+- Also reachable via `<hostname>.local` (mDNS / avahi)
+
+**On demo day:**
+
+1. Power the Jetson on (it auto-starts the hotspot)
+2. On the laptop, connect to WiFi `soil-crack-demo`
+3. Run the startup script:
+
+```bash
+SSH_HOST=10.42.0.1 bash jetson/demo_start.sh
+```
+
+The script prints the URL — open it in your browser. Works in any room, with or without infrastructure WiFi.
+
+**Reverting to a regular WiFi** (e.g. for development with internet access):
+
+```bash
+ssh jetson '
+  sudo nmcli connection down Hotspot
+  sudo nmcli connection modify Hotspot connection.autoconnect no
+  sudo nmcli connection up "your-home-wifi-name"
+'
+```
+
+To put it back into hotspot mode:
+```bash
+ssh jetson '
+  sudo nmcli connection modify Hotspot connection.autoconnect yes
+  sudo nmcli connection up Hotspot
+'
+```
+
+**Trade-off:** in hotspot mode the Jetson has no internet. `git pull` on the Jetson won't work. So pull any last-minute fixes *before* switching to hotspot mode.
+
 ## One-shot startup from a fresh laptop session
 
 If you open WSL on your laptop fresh and just want everything running:

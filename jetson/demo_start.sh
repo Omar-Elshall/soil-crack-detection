@@ -20,7 +20,12 @@
 #   - 8 ms shutter cap, WB auto, no TNR/EE/sharpening
 #
 # Usage:
-#   bash jetson/demo_start.sh
+#   bash jetson/demo_start.sh                       # uses 'ssh jetson' from your config
+#   SSH_HOST=10.42.0.1 bash jetson/demo_start.sh    # if the Jetson is in hotspot mode
+#   SSH_HOST=ubuntu.local bash jetson/demo_start.sh # via mDNS (works on either network)
+#
+# When the Jetson is acting as a WiFi hotspot (see setup_hotspot.sh), the laptop
+# joins SSID "soil-crack-demo" and the Jetson is at 10.42.0.1.
 
 set -u
 
