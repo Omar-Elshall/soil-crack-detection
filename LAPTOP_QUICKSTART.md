@@ -8,23 +8,34 @@ Run these once on the demo laptop. After that, the demo is **plug in LiPo, plug 
 - The Jetson's SSH private key + `~/.ssh/config` entry copied into WSL (see Section A below if not done)
 - This repo cloned in WSL at `~/projects/soil-crack-detection`
 
-## A. SSH key for `ssh jetson` (skip if `ssh jetson 'echo up'` already works)
+## A. SSH key — set up on BOTH the WSL side and the Windows side
 
-The Jetson accepts the `jetson_nano` key — copy it from the dev WSL via Windows Explorer / OneDrive / USB:
+The watcher uses **Windows-native OpenSSH** so it doesn't depend on WSL being started. You also want WSL ssh working for ad-hoc commands.
 
+**WSL side (`~/.ssh/jetson_nano`):** drop the key into WSL `~/.ssh/`:
 ```bash
-# In WSL on the demo laptop:
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
-
-# Drop these 3 files into ~/.ssh from wherever you transferred them:
-#   jetson_nano        (private key)
-#   jetson_nano.pub    (public key)
-#   config             (with the 'Host jetson' entry)
-
+# After transferring jetson_nano + jetson_nano.pub + config into ~/.ssh:
 chmod 600 ~/.ssh/jetson_nano ~/.ssh/config
 chmod 644 ~/.ssh/jetson_nano.pub
-ssh jetson 'echo up'   # should succeed without a password
+ssh jetson 'echo up'      # should succeed
 ```
+
+**Windows side (`C:\Users\<you>\.ssh\jetson_nano`):** copy the same files into the Windows-side .ssh:
+```cmd
+:: From CMD
+mkdir "%USERPROFILE%\.ssh"
+copy \\wsl.localhost\Ubuntu\home\<you>\.ssh\jetson_nano "%USERPROFILE%\.ssh\"
+copy \\wsl.localhost\Ubuntu\home\<you>\.ssh\jetson_nano.pub "%USERPROFILE%\.ssh\"
+:: Then edit %USERPROFILE%\.ssh\config to add (or use existing config):
+::   Host jetson
+::     HostName 192.168.1.233
+::     User sdp-w-nano
+::     IdentityFile %USERPROFILE%\.ssh\jetson_nano
+ssh jetson echo up        :: from CMD or PowerShell — should succeed
+```
+
+The watcher updates Windows-side `config` HostName line whenever the Jetson's IP changes.
 
 ## B. Clone the repo
 

@@ -12,10 +12,21 @@
 #   3. Once reachable: opens the default browser to the live UI.
 #   4. Loops every 3 s. 90 s cooldown between bootstrap attempts.
 #
-# Why PowerShell instead of WSL bash:
+# Why PowerShell + native OpenSSH (not WSL):
 #   - Native admin via Start-Process -Verb RunAs (UAC, one prompt)
 #   - netsh runs in this process, no shelling out
-#   - SSH still goes through wsl.exe so it reuses your existing ~/.ssh/config
+#   - SSH uses Windows-native ssh.exe so the watcher never depends on WSL
+#     being started. Reads %USERPROFILE%\.ssh\config and the jetson_nano
+#     private key from Windows-side ~/.ssh/.
+#
+# One-time setup (do this once, see LAPTOP_QUICKSTART.md):
+#   1. Copy jetson_nano + jetson_nano.pub from WSL ~/.ssh to Windows
+#      C:\Users\<you>\.ssh\
+#   2. Add a Host entry to C:\Users\<you>\.ssh\config:
+#         Host jetson
+#           HostName 192.168.1.233   (or whatever, watcher updates this)
+#           User sdp-w-nano
+#           IdentityFile C:\Users\<you>\.ssh\jetson_nano
 
 # ── Self-elevate ────────────────────────────────────────────────────────────
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
@@ -36,11 +47,20 @@ $URL_DEFAULT         = "http://soilcrack.local:5173"
 $BOOTSTRAP_COOLDOWN  = 90  # seconds
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
-function Wsl-Ssh {
+$SSH_EXE = "C:\Windows\System32\OpenSSH\ssh.exe"
+if (-not (Test-Path $SSH_EXE)) { $SSH_EXE = "ssh.exe" }   # fallback to PATH
+
+function Win-Ssh {
     param([string]$Target, [string]$Cmd)
-    # Run ssh from inside WSL so it uses ~/.ssh/config + jetson_nano key
-    $r = & wsl.exe -e bash -c "ssh -o ConnectTimeout=2 -o BatchMode=yes $Target '$Cmd' 2>/dev/null; echo `$?"
-    return ($r[-1] -eq "0")
+    # Run native Windows OpenSSH. Returns $true on success, $false otherwise.
+    & $SSH_EXE -o ConnectTimeout=2 -o BatchMode=yes -o StrictHostKeyChecking=no $Target $Cmd *>$null
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Win-Ssh-Output {
+    param([string]$Target, [string]$Cmd)
+    # Same but capture stdout (used for hostname -I etc.)
+    return (& $SSH_EXE -o ConnectTimeout=3 -o BatchMode=yes -o StrictHostKeyChecking=no $Target $Cmd 2>$null)
 }
 
 function Get-CurrentSsid {
@@ -86,9 +106,9 @@ function Ensure-HotspotProfile {
 function Probe-Jetson {
     foreach ($t in @("192.168.55.1", "jetson", "soilcrack.local")) {
         if ($t -eq "jetson") {
-            if (Wsl-Ssh "jetson" "echo up") { return $t }
+            if (Win-Ssh "jetson" "echo up") { return $t }
         } else {
-            if (Wsl-Ssh "$SSH_USER@$t" "echo up") { return $t }
+            if (Win-Ssh "$SSH_USER@$t" "echo up") { return $t }
         }
     }
     return $null
@@ -116,7 +136,7 @@ function Bootstrap-ViaHotspot {
     $reached = $false
     for ($i = 0; $i -lt 15; $i++) {
         Start-Sleep -Seconds 2
-        if (Wsl-Ssh "$SSH_USER@$JETSON_HOTSPOT_IP" "echo up") { $reached = $true; break }
+        if (Win-Ssh "$SSH_USER@$JETSON_HOTSPOT_IP" "echo up") { $reached = $true; break }
         Write-Host -NoNewline "."
     }
     Write-Host ""
@@ -127,8 +147,9 @@ function Bootstrap-ViaHotspot {
     }
 
     Write-Host "    Pushing creds to Jetson..."
+    # Single-line command for ssh; backgrounded sudo so the SSH session can return cleanly before the WiFi switch drops the link
     $pushCmd = "sudo nmcli connection modify Hotspot connection.autoconnect-priority 1 2>/dev/null; nohup sudo bash -c 'sleep 4 && nmcli device wifi connect `"$ssid`" password `"$pass`"' > /tmp/wifi-share.log 2>&1 & disown; exit 0"
-    & wsl.exe -e bash -c "ssh $SSH_USER@$JETSON_HOTSPOT_IP `"$pushCmd`" 2>/dev/null" | Out-Null
+    & $SSH_EXE -o BatchMode=yes -o StrictHostKeyChecking=no "$SSH_USER@$JETSON_HOTSPOT_IP" $pushCmd *>$null
 
     Write-Host "    Switching laptop back → $ssid"
     Start-Sleep -Seconds 4
@@ -143,7 +164,7 @@ function Bootstrap-ViaHotspot {
             $ans = Resolve-DnsName -Name "soilcrack.local" -ErrorAction SilentlyContinue | Where-Object {$_.Type -eq "A"} | Select-Object -First 1
             if ($ans) {
                 $candIp = $ans.IPAddress
-                if (Wsl-Ssh "$SSH_USER@$candIp" "echo up") { $newIp = $candIp; break }
+                if (Win-Ssh "$SSH_USER@$candIp" "echo up") { $newIp = $candIp; break }
             }
         } catch {}
         Write-Host -NoNewline "."
@@ -155,10 +176,24 @@ function Bootstrap-ViaHotspot {
     }
 
     Write-Host "    Jetson at " -NoNewline; Write-Host $newIp -ForegroundColor Green
-    # Update ~/.ssh/config inside WSL
-    $sedCmd = "if grep -q '^Host jetson$' ~/.ssh/config 2>/dev/null; then sed -i '/^Host jetson$/,/^Host /{s/^[[:space:]]*HostName .*/\tHostName $newIp/}' ~/.ssh/config; else mkdir -p ~/.ssh && chmod 700 ~/.ssh && printf '\nHost jetson\n\tHostName $newIp\n\tUser $SSH_USER\n\tIdentityFile ~/.ssh/jetson_nano\n' >> ~/.ssh/config && chmod 600 ~/.ssh/config; fi"
-    & wsl.exe -e bash -c $sedCmd | Out-Null
-    Write-Host "    Updated WSL ~/.ssh/config — 'ssh jetson' tracks $newIp" -ForegroundColor Green
+    # Update Windows-side ~/.ssh/config so 'ssh jetson' (Windows OpenSSH) tracks the new IP.
+    $sshDir = Join-Path $env:USERPROFILE ".ssh"
+    if (-not (Test-Path $sshDir)) { New-Item -ItemType Directory -Path $sshDir | Out-Null }
+    $configPath = Join-Path $sshDir "config"
+    $keyPath = Join-Path $sshDir "jetson_nano"
+    if (Test-Path $configPath) {
+        $cfgContent = Get-Content $configPath -Raw
+        if ($cfgContent -match "(?ms)^Host jetson\s*$") {
+            # Replace HostName line within the Host jetson block
+            $cfgContent = $cfgContent -replace "(?ms)(^Host jetson\s*\r?\n(?:.*?\r?\n)*?\s*HostName )[^\r\n]*", "`${1}$newIp"
+        } else {
+            $cfgContent += "`r`n`r`nHost jetson`r`n`tHostName $newIp`r`n`tUser $SSH_USER`r`n`tIdentityFile $keyPath`r`n"
+        }
+        Set-Content -Path $configPath -Value $cfgContent -NoNewline
+    } else {
+        Set-Content -Path $configPath -Value "Host jetson`r`n`tHostName $newIp`r`n`tUser $SSH_USER`r`n`tIdentityFile $keyPath`r`n"
+    }
+    Write-Host "    Updated $configPath — 'ssh jetson' tracks $newIp" -ForegroundColor Green
     return $true
 }
 
