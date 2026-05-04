@@ -516,10 +516,11 @@ export default function PlanPage() {
           <MapContainer
             center={center}
             zoom={17}
+            maxZoom={23}
             className="w-full h-full"
             style={{ cursor: drawing ? "crosshair" : "grab" }}
           >
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={23} maxNativeZoom={19} attribution="© OpenStreetMap" />
 
             {/* Click handler while drawing */}
             {drawing && <PolygonDrawer onAdd={handleAddVertex} />}

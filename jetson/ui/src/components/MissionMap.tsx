@@ -65,11 +65,14 @@ export function MissionMap({ telem, points = [], showDrone = false, defaultCente
       <MapContainer
         center={center as LatLngExpression}
         zoom={18}
+        maxZoom={23}
         style={{ width: "100%", height: "100%" }}
         zoomControl={false}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maxZoom={23}
+          maxNativeZoom={19}
           attribution="&copy; OpenStreetMap contributors"
         />
 
