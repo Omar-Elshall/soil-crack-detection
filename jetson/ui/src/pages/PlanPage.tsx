@@ -1,14 +1,13 @@
 import { useState, useCallback } from "react";
 import { MapContainer, TileLayer, useMapEvents, Polyline, Polygon, Marker } from "react-leaflet";
 import L from "leaflet";
-import { uploadMission, startMission, arm, guided, type Waypoint } from "../api/flight";
+import { uploadMission, startMission, arm, guided, hoverFlight, demoFlight, type Waypoint } from "../api/flight";
 import { useTelemetry } from "../hooks/useTelemetry";
 import { ConfirmModal } from "../components/ConfirmModal";
 import {
   Grid3x3, Upload, Play, Trash2, MapPin, AlertTriangle,
   CheckCircle, Loader, FlaskConical, Info, Undo2, Check,
 } from "lucide-react";
-import { getActive } from "../api/mavlinkSource";
 
 // ── Geometry helpers ────────────────────────────────────────────────────────────
 
@@ -204,6 +203,8 @@ export default function PlanPage() {
   const [waypoints, setWaypoints]   = useState<Waypoint[]>([]);
   const [status, setStatus]         = useState<Status>({ type: "idle", msg: "" });
   const [testStatus, setTestStatus] = useState<Status>({ type: "idle", msg: "" });
+  const [demoStatus, setDemoStatus] = useState<Status>({ type: "idle", msg: "" });
+  const [demoAltM, setDemoAltM]     = useState(2.0);
   const [showMissionConfirm, setShowMissionConfirm] = useState(false);
 
   const footprintM   = 2 * altM * Math.tan((62 / 2) * (Math.PI / 180));
@@ -277,17 +278,29 @@ export default function PlanPage() {
   }
 
   async function handleTestFlight() {
-    setTestStatus({ type: "uploading", msg: "Test flight running (~20s)…" });
+    setTestStatus({ type: "uploading", msg: "Hover test running (~45s)…" });
     try {
-      const res = await fetch(`${getActive().base}/command/test-flight`, { method: "POST" });
-      const data = await res.json();
+      const data = await hoverFlight(1.0, 30.0);
       setTestStatus(data.ok
-        ? { type: "ok",    msg: data.message }
-        : { type: "error", msg: data.message });
+        ? { type: "ok",    msg: "Hover test complete" }
+        : { type: "error", msg: data.message ?? "Failed" });
     } catch {
       setTestStatus({ type: "error", msg: "Request failed" });
     }
     setTimeout(() => setTestStatus({ type: "idle", msg: "" }), 5000);
+  }
+
+  async function handleDemoFlight() {
+    setDemoStatus({ type: "uploading", msg: `Detection pass running (~${Math.round(demoAltM * 1.5 + 3 / 0.2 + 12)}s)…` });
+    try {
+      const data = await demoFlight(demoAltM, 3.0, 0.2);
+      setDemoStatus(data.ok
+        ? { type: "ok",    msg: `Pass complete (${demoAltM} m, 3 m forward)` }
+        : { type: "error", msg: data.steps?.find((s: any) => !s.ok)?.message ?? "Failed" });
+    } catch {
+      setDemoStatus({ type: "error", msg: "Request failed" });
+    }
+    setTimeout(() => setDemoStatus({ type: "idle", msg: "" }), 5000);
   }
 
   // ── Derived stats ────────────────────────────────────────────────────────────
@@ -491,11 +504,11 @@ export default function PlanPage() {
 
           <StatusBadge status={status} />
 
-          {/* Test flight */}
+          {/* Hover test */}
           <div className="border-t border-parchment-darker pt-4">
-            <h3 className="text-[10px] font-mono uppercase tracking-widest text-ink-muted mb-1">Safety Test</h3>
+            <h3 className="text-[10px] font-mono uppercase tracking-widest text-ink-muted mb-1">Hover Test</h3>
             <p className="text-[10px] text-ink-faint font-sans mb-2.5">
-              Hover test — takes off 2 m, holds for 5 s, then lands. No GPS required. Use to verify motors and control before a real mission.
+              GUIDED → ARM → takeoff 1 m → hover 30 s → LAND → disarm. Verifies the full GPS-guided flight stack before a real mission.
             </p>
             <button
               onClick={handleTestFlight}
@@ -508,6 +521,36 @@ export default function PlanPage() {
               }
             </button>
             <StatusBadge status={testStatus} />
+          </div>
+
+          {/* Detection pass demo */}
+          <div className="border-t border-parchment-darker pt-4">
+            <h3 className="text-[10px] font-mono uppercase tracking-widest text-ink-muted mb-1">Detection Pass</h3>
+            <p className="text-[10px] text-ink-faint font-sans mb-2.5">
+              GUIDED → ARM → takeoff → forward 3 m at 0.2 m/s → LAND → disarm. Camera covers an A1 print row at slow walking pace.
+            </p>
+            <label className="block text-[10px] font-mono uppercase tracking-widest text-ink-muted mb-1">Altitude (m)</label>
+            <input
+              type="number"
+              step={0.5}
+              min={0.5}
+              max={10}
+              value={demoAltM}
+              onChange={(e) => setDemoAltM(parseFloat(e.target.value) || 2.0)}
+              disabled={demoStatus.type === "uploading"}
+              className="w-full px-2 py-1.5 mb-2.5 rounded-md border border-parchment-darker bg-parchment text-xs font-mono text-ink"
+            />
+            <button
+              onClick={handleDemoFlight}
+              disabled={demoStatus.type === "uploading"}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-md border text-xs font-mono font-bold transition-colors border-terracotta/40 bg-terracotta/10 text-terracotta hover:bg-terracotta/20 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {demoStatus.type === "uploading"
+                ? <><Loader size={13} className="animate-spin" /> Running…</>
+                : <><Play size={13} /> Run Detection Pass</>
+              }
+            </button>
+            <StatusBadge status={demoStatus} />
           </div>
         </div>
 

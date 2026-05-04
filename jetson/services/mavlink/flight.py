@@ -86,6 +86,20 @@ class FlightController:
         )
         return {"ok": True, "message": f"Goto N={north_m} E={east_m} alt={alt_m}m"}
 
+    def set_speed(self, speed_m_s: float) -> dict:
+        """Set ground speed via MAV_CMD_DO_CHANGE_SPEED.
+        Stays in effect until changed or mode reset."""
+        ok, msg = self._check()
+        if not ok:
+            return {"ok": False, "message": msg}
+        ok = self.conn.send_command_long(
+            mavutil.mavlink.MAV_CMD_DO_CHANGE_SPEED,
+            param1=1,           # 1 = ground speed
+            param2=speed_m_s,
+            param3=-1,          # throttle: -1 = no change
+        )
+        return {"ok": ok, "message": f"Speed -> {speed_m_s} m/s" if ok else "Set-speed failed"}
+
     def land(self) -> dict:
         ok, msg = self._check()
         if not ok:

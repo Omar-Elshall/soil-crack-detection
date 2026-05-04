@@ -27,9 +27,17 @@ export const uploadMission  = (waypoints: Waypoint[], takeoff_alt = 4.0) =>
   cmd("upload-mission", { waypoints, takeoff_alt });
 export const startMission   = () => cmd("start-mission");
 
-// Sequenced demo flight: GUIDED -> ARM -> takeoff -> hover -> LAND -> disarm.
-// Backend handles timing; UI just awaits the final response.
-export const demoFlight     = (altitude_m = 1.0, hover_seconds = 30.0) =>
-  fetch(`${getActive().base}/command/demo-flight?altitude_m=${altitude_m}&hover_seconds=${hover_seconds}`, {
+// Detection-pass demo: GUIDED -> ARM -> takeoff -> set speed -> goto N=forward_m
+// at the same altitude -> LAND -> disarm. For an outdoor crack-detection demo
+// over A1 prints. Backend handles timing.
+export const demoFlight = (altitude_m = 2.0, forward_m = 3.0, speed_m_s = 0.2) =>
+  fetch(`${getActive().base}/command/demo-flight?altitude_m=${altitude_m}&forward_m=${forward_m}&speed_m_s=${speed_m_s}`, {
+    method: "POST",
+  }).then((r) => r.json());
+
+// Stationary hover demo (used by the Plan page "Hover Test" button):
+// GUIDED -> ARM -> takeoff -> hover -> LAND -> disarm.
+export const hoverFlight = (altitude_m = 1.0, hover_seconds = 30.0) =>
+  fetch(`${getActive().base}/command/hover-flight?altitude_m=${altitude_m}&hover_seconds=${hover_seconds}`, {
     method: "POST",
   }).then((r) => r.json());

@@ -26,12 +26,17 @@ conn = None
 
 @router.post("/command/demo-flight")
 async def demo_flight(
-    altitude_m: float = 1.0,
-    hover_seconds: float = 30.0,
+    altitude_m: float = 2.0,
+    forward_m: float = 3.0,
+    speed_m_s: float = 0.2,
 ):
-    """Run a fully-sequenced demo flight: GUIDED -> ARM -> takeoff to
-    `altitude_m` -> hover for `hover_seconds` -> LAND -> disarm.
-    Returns step-by-step results. Bails early if any step fails.
+    """Sequenced detection-pass demo: GUIDED -> ARM -> takeoff to
+    `altitude_m` -> set ground speed `speed_m_s` -> goto N=`forward_m`
+    (north of arming point) at the same altitude -> LAND -> disarm.
+
+    Designed for an outdoor demo over A1 crack-print sheets: drone hovers
+    up, crawls forward at walking-pace so the camera covers the prints,
+    then lands. Defaults: 2 m altitude, 3 m forward, 0.2 m/s.
     """
     import asyncio
     if flight is None:
@@ -44,34 +49,70 @@ async def demo_flight(
         steps.append({"step": name, "ok": ok, "message": result.get("message", "")})
         return ok
 
-    # 1. GUIDED
     if not step("guided", flight.set_guided_mode()):
         return {"ok": False, "steps": steps}
     await asyncio.sleep(1.0)
 
-    # 2. ARM
     if not step("arm", flight.arm()):
         return {"ok": False, "steps": steps}
     await asyncio.sleep(1.0)
 
-    # 3. TAKEOFF
     if not step("takeoff", flight.takeoff(altitude_m)):
-        # try to disarm to be safe
         flight.disarm()
         return {"ok": False, "steps": steps}
 
-    # 4. HOVER
-    await asyncio.sleep(hover_seconds)
-    steps.append({"step": "hovered", "ok": True, "message": f"{hover_seconds}s"})
+    # Let it climb close to target altitude before issuing the forward command.
+    # rough rule of thumb: ~1 s per meter of climb at ArduCopter's default WPNAV_SPEED_UP.
+    await asyncio.sleep(max(4.0, altitude_m * 1.5))
 
-    # 5. LAND
+    if not step("set_speed", flight.set_speed(speed_m_s)):
+        flight.land(); flight.disarm()
+        return {"ok": False, "steps": steps}
+    await asyncio.sleep(0.5)
+
+    if not step("forward", flight.goto_ned(forward_m, 0.0, altitude_m)):
+        flight.land(); flight.disarm()
+        return {"ok": False, "steps": steps}
+
+    # Wait for the leg + a small buffer so the drone actually arrives.
+    travel_s = forward_m / max(speed_m_s, 0.05)
+    await asyncio.sleep(travel_s + 4.0)
+    steps.append({"step": "traveled", "ok": True, "message": f"{forward_m} m at {speed_m_s} m/s ({travel_s:.1f}s)"})
+
     if not step("land", flight.land()):
         return {"ok": False, "steps": steps}
 
-    # 6. DISARM after land settles
     await asyncio.sleep(8.0)
     step("disarm", flight.disarm())
 
+    return {"ok": True, "steps": steps}
+
+
+@router.post("/command/hover-flight")
+async def hover_flight(altitude_m: float = 1.0, hover_seconds: float = 30.0):
+    """Stationary hover test (no horizontal movement):
+    GUIDED -> ARM -> takeoff to `altitude_m` -> hover for `hover_seconds`
+    -> LAND -> disarm. Same shape as the original demo-flight before the
+    forward-pass version replaced it."""
+    import asyncio
+    if flight is None:
+        return {"ok": False, "error": "Service not ready"}
+    steps = []
+    def step(name, result):
+        ok = bool(result.get("ok"))
+        steps.append({"step": name, "ok": ok, "message": result.get("message", "")})
+        return ok
+    if not step("guided", flight.set_guided_mode()): return {"ok": False, "steps": steps}
+    await asyncio.sleep(1.0)
+    if not step("arm", flight.arm()): return {"ok": False, "steps": steps}
+    await asyncio.sleep(1.0)
+    if not step("takeoff", flight.takeoff(altitude_m)):
+        flight.disarm(); return {"ok": False, "steps": steps}
+    await asyncio.sleep(hover_seconds)
+    steps.append({"step": "hovered", "ok": True, "message": f"{hover_seconds}s"})
+    if not step("land", flight.land()): return {"ok": False, "steps": steps}
+    await asyncio.sleep(8.0)
+    step("disarm", flight.disarm())
     return {"ok": True, "steps": steps}
 
 

@@ -139,21 +139,6 @@ export function FlightControls({ armed, mode }: Props) {
         </div>
       </div>
 
-      {/* Demo flight — sequenced 1m hover demo */}
-      <div>
-        <p className="text-[9px] font-mono uppercase tracking-widest text-ink-faint mb-1.5">Demo Flight</p>
-        <CmdButton
-          label="DEMO: 1m × 30s"
-          icon={<Navigation size={11} />}
-          onClick={() => flight.demoFlight(1.0, 30.0)}
-          variant="primary"
-          fullWidth
-        />
-        <p className="text-[9px] font-mono text-ink-faint mt-1.5">
-          GUIDED → ARM → takeoff 1m → hover 30s → LAND → disarm
-        </p>
-      </div>
-
       {/* ARM confirmation modal */}
       {showArmConfirm && (
         <ConfirmModal
